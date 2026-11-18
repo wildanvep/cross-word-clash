@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import RoomPanel, { type RoomPanelProps } from "./RoomPanel";
+import { hostTokenStorageKey, useRoomConnection } from "./realtime";
 import {
   createInitialState,
   getGrid,
@@ -139,6 +141,11 @@ function nextTeamName(teams: Team[]): string {
   return `Team ${number}`;
 }
 
+function roomCodeFromLocation(): string | null {
+  const roomCode = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase();
+  return roomCode && /^[A-F0-9]{12}$/.test(roomCode) ? roomCode : null;
+}
+
 function HostPasswordGate({ state, navigate, onUnlocked }: {
   state: GameState;
   navigate: (to: "/game" | "/host") => void;
@@ -213,25 +220,94 @@ function HostPasswordGate({ state, navigate, onUnlocked }: {
 function App() {
   const [state, setState] = useGameState();
   const [path, setPath] = useState(currentRoute);
+  const [roomCode, setRoomCode] = useState(roomCodeFromLocation);
+  const [roomActionError, setRoomActionError] = useState<string | null>(null);
+  const [creatingRoom, setCreatingRoom] = useState(false);
   const [hostUnlocked, setHostUnlocked] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"reset" | "reset-game" | "finish" | "reveal" | null>(null);
   const [seconds, setSeconds] = useState(60);
   const hostPage = path === "/host";
+  const hostToken = roomCode ? localStorage.getItem(hostTokenStorageKey(roomCode)) : null;
+  const roomConnection = useRoomConnection(
+    roomCode,
+    hostPage ? hostUnlocked ? "host" : null : "player",
+    hostToken,
+    state,
+    setState,
+  );
 
   useEffect(() => {
     const handleNavigation = () => {
       const route = currentRoute();
       if (route === "/game") setHostUnlocked(false);
       setPath(route);
+      setRoomCode(roomCodeFromLocation());
     };
     window.addEventListener("popstate", handleNavigation);
     return () => window.removeEventListener("popstate", handleNavigation);
   }, []);
 
   const navigate = (to: "/game" | "/host") => {
-    if (window.location.pathname !== to) window.history.pushState({}, "", to);
+    if (window.location.pathname !== to) {
+      const query = roomCode ? `?room=${encodeURIComponent(roomCode)}` : "";
+      window.history.pushState({}, "", `${to}${query}`);
+    }
     if (to === "/game") setHostUnlocked(false);
     setPath(to);
+  };
+
+  const createRoom = async () => {
+    setCreatingRoom(true);
+    setRoomActionError(null);
+    try {
+      const response = await fetch("/api/ws", { method: "POST" });
+      let result: { roomCode?: string; token?: string; error?: string };
+      try {
+        result = await response.json() as typeof result;
+      } catch {
+        throw new Error("The live room service is not available here. Deploy to Vercel with Redis configured, or use `vercel dev`.");
+      }
+      if (!response.ok || !result.roomCode || !result.token) {
+        throw new Error(result.error ?? "Could not create a live room.");
+      }
+      localStorage.setItem(hostTokenStorageKey(result.roomCode), result.token);
+      const url = new URL(window.location.href);
+      url.search = `?room=${encodeURIComponent(result.roomCode)}`;
+      window.history.pushState({}, "", `${url.pathname}${url.search}`);
+      setRoomCode(result.roomCode);
+    } catch (error) {
+      console.error("Could not create a live room.", error);
+      setRoomActionError(error instanceof Error ? error.message : "Could not create a live room.");
+    } finally {
+      setCreatingRoom(false);
+    }
+  };
+
+  const joinRoom = (value: string) => {
+    const code = value.trim().toUpperCase();
+    if (!/^[A-F0-9]{12}$/.test(code)) {
+      setRoomActionError("Enter the 12-character room code shown by the Host Desk.");
+      return;
+    }
+    setRoomActionError(null);
+    const url = new URL(window.location.href);
+    url.pathname = "/game";
+    url.search = `?room=${encodeURIComponent(code)}`;
+    window.history.pushState({}, "", `${url.pathname}${url.search}`);
+    setRoomCode(code);
+    setPath("/game");
+    setHostUnlocked(false);
+  };
+
+  const copyPlayerLink = async () => {
+    if (!roomCode) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/game?room=${encodeURIComponent(roomCode)}`);
+      setRoomActionError(null);
+    } catch (error) {
+      console.error("Could not copy the player room link.", error);
+      setRoomActionError("Could not copy the link. You can share the room code instead.");
+    }
   };
 
   const remaining = useCallback(() => {
@@ -246,7 +322,7 @@ function App() {
   }, [remaining]);
 
   useEffect(() => {
-    if (seconds !== 0 || !state.timerEndsAt) return;
+    if (!hostPage || !hostUnlocked || seconds !== 0 || !state.timerEndsAt) return;
     setState((current) => {
       if (current.timerEndsAt === null) return current;
       const team = current.teams.find((entry) => entry.id === current.selectedTeamId);
@@ -275,7 +351,7 @@ function App() {
         },
       };
     });
-  }, [seconds, state.timerEndsAt, setState]);
+  }, [hostPage, hostUnlocked, seconds, state.timerEndsAt, setState]);
 
   useEffect(() => {
     const messageId = state.message?.id;
@@ -482,10 +558,23 @@ function App() {
   const maxScore = state.clues.reduce((sum, clue) => sum + clue.points, 0);
   const totalPoints = state.teams.reduce((sum, team) => sum + team.score, 0);
 
+  const roomPanelProps: RoomPanelProps = {
+    hostPage,
+    roomCode,
+    status: roomConnection.status,
+    connectionError: roomConnection.error,
+    actionError: roomActionError,
+    creating: creatingRoom,
+    onCreateRoom: () => { void createRoom(); },
+    onJoinRoom: joinRoom,
+    onCopyPlayerLink: () => { void copyPlayerLink(); },
+  };
+
   const pageProps = {
     state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams, grid, seconds,
     chooseClue, timerStartPause, resetTimer, markCorrect, recordIncorrect, passClue, updateClue,
     adjustScore, changeTeamName, addTeam, removeTeam, resetClue, setConfirmAction, finishGame,
+    roomPanelProps,
   };
 
   return (
@@ -519,6 +608,7 @@ type SharedProps = {
   setState: React.Dispatch<React.SetStateAction<GameState>>;
   hostPage: boolean;
   navigate: (to: "/game" | "/host") => void;
+  roomPanelProps: RoomPanelProps;
   selectedClue: Clue | null;
   selectedTeam: Team | null;
   sortedTeams: Team[];
@@ -685,7 +775,8 @@ function PlayerPage(props: SharedProps & { completed: number }) {
     return (
       <main className="player-page final-page">
         <BrandHeader hostPage={hostPage} navigate={navigate} state={state} />
-        <section className="final-sheet">
+          <RoomPanel {...props.roomPanelProps} />
+          <section className="final-sheet">
           <div className="final-topline"><span>ENGLISH DAY CHAMPIONSHIP</span><span>FINAL EDITION · ROUND {state.currentRound}</span></div>
           <p className="eyebrow centered">THE PUZZLE IS COMPLETE</p>
           <h1>The Final Results</h1>
@@ -724,6 +815,7 @@ function PlayerPage(props: SharedProps & { completed: number }) {
   return (
     <main className="player-page">
       <BrandHeader hostPage={hostPage} navigate={navigate} state={state} />
+      <RoomPanel {...props.roomPanelProps} />
       <div className="player-toolbar">
         <div><span className={`live-dot ${state.gameStatus === "playing" ? "on" : ""}`} />{state.gameStatus === "playing" ? "LIVE GAME" : state.gameStatus === "paused" ? "PAUSED" : "READY WHEN YOU ARE"}</div>
         <div className="toolbar-center">PUZZLE No. 001 <i>✦</i> THE DAILY WORD</div>
@@ -841,6 +933,7 @@ function HostPage(props: SharedProps & { completed: number; revealed: number; ma
   return (
     <main className="host-page">
       <BrandHeader hostPage={hostPage} navigate={navigate} state={state} />
+      <RoomPanel {...props.roomPanelProps} />
       <div className="host-intro">
         <div><span className="eyebrow">TEAM 4 ENGLISH DAY · HOST CONTROL</span><h1>Host Desk</h1><p>One desk. Every clue. Let the wordplay begin.</p></div>
         <div className="host-intro-tools">
