@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import Redis from "ioredis";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
@@ -7,6 +7,7 @@ const ROOM_TTL_SECONDS = 12 * 60 * 60;
 const MAX_MESSAGE_BYTES = 128 * 1024;
 const PLAYER_STATE_POLL_MS = 1000;
 const EVENT_CHANNEL = "crossword-clash:room-events";
+const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const redisUrl = process.env.REDIS_URL;
 const redis = redisUrl ? new Redis(redisUrl, {
   commandTimeout: 10_000,
@@ -71,6 +72,14 @@ function selectionKey(roomCode: string): string {
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function createRoomCode(): string {
+  return Array.from({ length: 5 }, () => ROOM_CODE_ALPHABET[randomInt(ROOM_CODE_ALPHABET.length)]).join("");
+}
+
+function isRoomCode(value: string): boolean {
+  return /^(?:[A-HJ-NP-Z2-9]{5}|[A-F0-9]{12})$/i.test(value);
 }
 
 function tokenMatches(token: string, expectedHash: string): boolean {
@@ -212,7 +221,7 @@ async function createRoom(response: ServerResponse): Promise<void> {
   try {
     const token = randomBytes(32).toString("base64url");
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const roomCode = randomBytes(6).toString("hex").toUpperCase();
+      const roomCode = createRoomCode();
       const result = await redis.set(authKey(roomCode), hashToken(token), "EX", ROOM_TTL_SECONDS, "NX");
       if (result === "OK") {
         sendJson(response, 201, { roomCode, token });
@@ -258,7 +267,7 @@ async function handleMessage(socket: WebSocket, rawMessage: RawData): Promise<vo
 
   const joined = socketRooms.get(socket);
   if (!joined) {
-    if (message.type !== "join" || typeof message.roomCode !== "string" || !/^[A-F0-9]{12}$/i.test(message.roomCode)) {
+    if (message.type !== "join" || typeof message.roomCode !== "string" || !isRoomCode(message.roomCode)) {
       send(socket, { type: "error", message: "Enter a valid room code to join." });
       socket.close(1008, "Invalid room");
       return;

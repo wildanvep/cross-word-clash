@@ -88,7 +88,7 @@ export default function RoomPanel({
             <small>Enter the room code from the host to follow on this device.</small>
           </div>
           <form className="room-join-form" onSubmit={join}>
-            <input aria-label="Room code" value={draftCode} onChange={(event) => setDraftCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" maxLength={12} autoComplete="off" />
+            <input aria-label="Room code" value={draftCode} onChange={(event) => setDraftCode(event.target.value.toUpperCase())} placeholder="5-CHAR CODE" maxLength={12} autoComplete="off" />
             <button className="button-primary room-action" type="submit">Join room</button>
           </form>
         </>

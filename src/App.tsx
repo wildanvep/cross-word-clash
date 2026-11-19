@@ -106,6 +106,10 @@ function currentRoute(): "/game" | "/host" {
   return "/game";
 }
 
+function isValidRoomCode(value: string): boolean {
+  return /^(?:[A-HJ-NP-Z2-9]{5}|[A-F0-9]{12})$/.test(value);
+}
+
 function nextTeamName(teams: Team[]): string {
   let number = teams.length + 1;
   while (teams.some((team) => team.name === `Team ${number}`)) number += 1;
@@ -114,7 +118,7 @@ function nextTeamName(teams: Team[]): string {
 
 function roomCodeFromLocation(): string | null {
   const roomCode = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase();
-  return roomCode && /^[A-F0-9]{12}$/.test(roomCode) ? roomCode : null;
+  return roomCode && isValidRoomCode(roomCode) ? roomCode : null;
 }
 
 function App() {
@@ -183,8 +187,8 @@ function App() {
 
   const joinRoom = (value: string) => {
     const code = value.trim().toUpperCase();
-    if (!/^[A-F0-9]{12}$/.test(code)) {
-      setRoomActionError("Enter the 12-character room code shown by the Host Desk.");
+    if (!isValidRoomCode(code)) {
+      setRoomActionError("Enter the 5-character room code shown by the Host Desk.");
       return;
     }
     setRoomActionError(null);
