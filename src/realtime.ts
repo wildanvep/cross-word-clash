@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import type { GameState } from "./game";
+import { selectClue, type GameState } from "./game";
 
 export type RoomConnectionStatus = "offline" | "connecting" | "connected" | "reconnecting" | "error";
 export type RoomRole = "host" | "player" | null;
@@ -63,7 +63,7 @@ export function useRoomConnection(
 
       socket.addEventListener("message", (event) => {
         if (disposed || activeSocket !== socket) return;
-        let message: { type?: unknown; state?: unknown; message?: unknown };
+        let message: { type?: unknown; state?: unknown; message?: unknown; clueId?: unknown };
         try {
           message = JSON.parse(String(event.data)) as typeof message;
         } catch (cause) {
@@ -99,6 +99,10 @@ export function useRoomConnection(
           }
           setState(message.state);
         }
+        const selectedClueId = message.clueId;
+        if (message.type === "clue-selection" && role === "host" && typeof selectedClueId === "string") {
+          setState((current) => selectClue(current, selectedClueId));
+        }
       });
 
       socket.addEventListener("close", () => {
@@ -133,5 +137,13 @@ export function useRoomConnection(
     return () => window.clearTimeout(timeout);
   }, [role, state, status]);
 
-  return { status, error };
+  const requestClueSelection = (clueId: string) => {
+    if (role !== "player" || status !== "connected") return;
+    const socket = socketRef.current;
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "select-clue", clueId }));
+    }
+  };
+
+  return { status, error, requestClueSelection };
 }

@@ -43,12 +43,19 @@ interface ClientMessage {
   role?: unknown;
   token?: unknown;
   state?: unknown;
+  clueId?: unknown;
+}
+
+interface RoomSelection {
+  id: string;
+  clueId: string;
 }
 
 const roomSockets = new Map<string, Set<WebSocket>>();
 const socketRooms = new WeakMap<WebSocket, RoomSocket>();
-const socketStatePollers = new WeakMap<WebSocket, ReturnType<typeof setInterval>>();
+const socketPollers = new WeakMap<WebSocket, ReturnType<typeof setInterval>>();
 const lastSentStates = new WeakMap<WebSocket, string>();
+const lastSelectionIds = new WeakMap<WebSocket, string>();
 
 function authKey(roomCode: string): string {
   return `crossword-clash:room:${roomCode}:auth`;
@@ -56,6 +63,10 @@ function authKey(roomCode: string): string {
 
 function stateKey(roomCode: string): string {
   return `crossword-clash:room:${roomCode}:state`;
+}
+
+function selectionKey(roomCode: string): string {
+  return `crossword-clash:room:${roomCode}:selection`;
 }
 
 function hashToken(token: string): string {
@@ -83,6 +94,22 @@ function isGameState(value: unknown): boolean {
     && typeof state.gameStatus === "string";
 }
 
+function isRoomSelection(value: unknown): value is RoomSelection {
+  if (!value || typeof value !== "object") return false;
+  const selection = value as Partial<RoomSelection>;
+  return typeof selection.id === "string" && typeof selection.clueId === "string";
+}
+
+function isSelectableClue(state: unknown, clueId: string): boolean {
+  if (!isGameState(state)) return false;
+  const clues = (state as Record<string, unknown>).clues;
+  return Array.isArray(clues) && clues.some((clue: unknown) => {
+    if (!clue || typeof clue !== "object") return false;
+    const entry = clue as Record<string, unknown>;
+    return entry.id === clueId && entry.status !== "Correct" && entry.status !== "Skipped";
+  });
+}
+
 function sendPlayerState(socket: WebSocket, state: unknown): void {
   if (!isGameState(state)) return;
   const serializedState = JSON.stringify(state);
@@ -91,10 +118,20 @@ function sendPlayerState(socket: WebSocket, state: unknown): void {
   send(socket, { type: "state", state });
 }
 
+function sendHostSelection(socket: WebSocket, selection: RoomSelection): void {
+  if (socketRooms.get(socket)?.role !== "host" || lastSelectionIds.get(socket) === selection.id) return;
+  lastSelectionIds.set(socket, selection.id);
+  send(socket, { type: "clue-selection", clueId: selection.clueId });
+}
+
 function broadcastState(roomCode: string, state: unknown): void {
   for (const socket of roomSockets.get(roomCode) ?? []) {
     if (socketRooms.get(socket)?.role === "player") sendPlayerState(socket, state);
   }
+}
+
+function broadcastSelection(roomCode: string, selection: RoomSelection): void {
+  for (const socket of roomSockets.get(roomCode) ?? []) sendHostSelection(socket, selection);
 }
 
 function startPlayerStatePolling(socket: WebSocket, roomCode: string): void {
@@ -121,14 +158,38 @@ function startPlayerStatePolling(socket: WebSocket, roomCode: string): void {
       polling = false;
     });
   }, PLAYER_STATE_POLL_MS);
-  socketStatePollers.set(socket, poller);
+  socketPollers.set(socket, poller);
+}
+
+function startHostSelectionPolling(socket: WebSocket, roomCode: string): void {
+  const client = redis;
+  if (!client) return;
+  let polling = false;
+  let failureReported = false;
+  const poller = setInterval(() => {
+    if (polling || socket.readyState !== WebSocket.OPEN) return;
+    polling = true;
+    void client.get(selectionKey(roomCode)).then((savedSelection) => {
+      failureReported = false;
+      if (!savedSelection) return;
+      const selection: unknown = JSON.parse(savedSelection);
+      if (isRoomSelection(selection)) sendHostSelection(socket, selection);
+    }).catch((error: unknown) => {
+      if (!failureReported) console.error("Could not poll the Crossword Clash player selection.", error);
+      failureReported = true;
+    }).finally(() => {
+      polling = false;
+    });
+  }, PLAYER_STATE_POLL_MS);
+  socketPollers.set(socket, poller);
 }
 
 subscriber?.on("message", (_channel, rawMessage) => {
   try {
-    const message = JSON.parse(rawMessage) as { roomCode?: unknown; state?: unknown };
-    if (typeof message.roomCode !== "string" || !isGameState(message.state)) return;
-    broadcastState(message.roomCode, message.state);
+    const message = JSON.parse(rawMessage) as { roomCode?: unknown; state?: unknown; selection?: unknown };
+    if (typeof message.roomCode !== "string") return;
+    if (isGameState(message.state)) broadcastState(message.roomCode, message.state);
+    if (isRoomSelection(message.selection)) broadcastSelection(message.roomCode, message.selection);
   } catch (error) {
     console.error("Could not relay a Crossword Clash room update.", error);
   }
@@ -241,9 +302,10 @@ async function handleMessage(socket: WebSocket, rawMessage: RawData): Promise<vo
       const savedState = await redis.get(stateKey(roomCode));
       if (savedState) {
         const state: unknown = JSON.parse(savedState);
-        sendPlayerState(socket, state);
+        if (message.role === "player") sendPlayerState(socket, state);
       }
       if (message.role === "player") startPlayerStatePolling(socket, roomCode);
+      if (message.role === "host") startHostSelectionPolling(socket, roomCode);
       return;
     } catch (error) {
       console.error("Could not join a Crossword Clash room.", error);
@@ -251,6 +313,26 @@ async function handleMessage(socket: WebSocket, rawMessage: RawData): Promise<vo
       socket.close(1011, "Room connection failed");
       return;
     }
+  }
+
+  if (message.type === "select-clue" && joined.role === "player") {
+    const clueId = message.clueId;
+    if (typeof clueId !== "string") return;
+    const client = redis;
+    if (!client) return;
+    try {
+      const savedState = await client.get(stateKey(joined.roomCode));
+      const state: unknown = savedState ? JSON.parse(savedState) : null;
+      if (!isSelectableClue(state, clueId)) return;
+      const selection: RoomSelection = { id: randomBytes(8).toString("hex"), clueId };
+      await client.set(selectionKey(joined.roomCode), JSON.stringify(selection), "EX", ROOM_TTL_SECONDS);
+      await client.publish(EVENT_CHANNEL, JSON.stringify({ roomCode: joined.roomCode, selection }));
+      broadcastSelection(joined.roomCode, selection);
+    } catch (error) {
+      console.error("Could not relay a player clue selection.", error);
+      send(socket, { type: "error", message: "Could not send the selected clue to the Host Desk." });
+    }
+    return;
   }
 
   if (message.type !== "state" || joined.role !== "host" || !isGameState(message.state)) return;
@@ -294,10 +376,11 @@ webSocketServer.on("connection", (socket, request: IncomingMessage) => {
   });
 
   const removeSocket = () => {
-    const poller = socketStatePollers.get(socket);
+    const poller = socketPollers.get(socket);
     if (poller) clearInterval(poller);
-    socketStatePollers.delete(socket);
+    socketPollers.delete(socket);
     lastSentStates.delete(socket);
+    lastSelectionIds.delete(socket);
     const room = socketRooms.get(socket);
     if (!room) return;
     const sockets = roomSockets.get(room.roomCode);

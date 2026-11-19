@@ -179,6 +179,19 @@ export function createInitialState(): GameState {
   };
 }
 
+export function selectClue(state: GameState, clueId: string): GameState {
+  const clue = state.clues.find((entry) => entry.id === clueId);
+  if (!clue || clue.status === "Correct" || clue.status === "Skipped") return state;
+  return {
+    ...state,
+    selectedClueId: clueId,
+    clues: state.clues.map((entry) => entry.id === clueId
+      ? { ...entry, status: "Active", revealedHintCount: 0 }
+      : entry.status === "Active" ? { ...entry, status: "Unanswered" } : entry),
+    message: null,
+  };
+}
+
 export function getGrid(clues: Clue[]) {
   const cells = new Map<string, { letter: string; clueNumbers: number[]; acrossId?: string; downId?: string }>();
   for (const clue of clues) {

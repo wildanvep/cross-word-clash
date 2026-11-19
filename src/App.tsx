@@ -6,6 +6,7 @@ import {
   getGrid,
   GRID_SIZE,
   orderedTeams,
+  selectClue as applyClueSelection,
   STORAGE_KEY,
   teamRank,
   validatePuzzle,
@@ -277,14 +278,8 @@ function App() {
 
   const chooseClue = (clue: Clue) => {
     if (clue.status === "Correct" || clue.status === "Skipped") return;
-    setState((current) => ({
-      ...current,
-      selectedClueId: clue.id,
-      clues: current.clues.map((item) => item.id === clue.id
-        ? { ...item, status: "Active", revealedHintCount: 0 }
-        : item.status === "Active" ? { ...item, status: "Unanswered" } : item),
-      message: null,
-    }));
+    if (!hostPage) roomConnection.requestClueSelection(clue.id);
+    setState((current) => applyClueSelection(current, clue.id));
   };
 
   const timerStartPause = () => {
