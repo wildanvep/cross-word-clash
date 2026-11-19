@@ -114,7 +114,7 @@ async function createRoom(response: ServerResponse): Promise<void> {
     sendJson(response, 503, { error: "Could not create a room. Please try again." });
   } catch (error) {
     console.error("Could not create a Crossword Clash room.", error);
-    sendJson(response, 503, { error: "The live room service is temporarily unavailable." });
+    sendJson(response, 503, { error: "Could not connect to Redis. Verify REDIS_URL for Production and redeploy." });
   }
 }
 
