@@ -11,6 +11,7 @@ export interface RoomPanelProps {
   onCreateRoom: () => void;
   onJoinRoom: (roomCode: string) => void;
   onCopyPlayerLink: () => void;
+  onLeaveRoom: () => void;
 }
 
 const statusLabels: Record<RoomConnectionStatus, string> = {
@@ -35,6 +36,7 @@ export default function RoomPanel({
   onCreateRoom,
   onJoinRoom,
   onCopyPlayerLink,
+  onLeaveRoom,
 }: RoomPanelProps) {
   const [draftCode, setDraftCode] = useState(roomCode ?? "");
 
@@ -55,8 +57,11 @@ export default function RoomPanel({
               <strong>Room {roomCode}</strong>
               <small>Share the player link so another laptop can follow the game.</small>
             </div>
-            <ConnectionBadge status={status} />
-            <button className="button-primary room-action" onClick={onCopyPlayerLink}>Copy player link</button>
+            <div className="room-panel-actions">
+              <ConnectionBadge status={status} />
+              <button className="button-primary room-action" onClick={onCopyPlayerLink}>Copy player link</button>
+              <button className="button-outline room-leave-action" onClick={onLeaveRoom}>Leave room</button>
+            </div>
           </>
         ) : (
           <>
@@ -78,7 +83,10 @@ export default function RoomPanel({
             <strong>Room {roomCode}</strong>
             <small>Game updates are shared from the Host Desk.</small>
           </div>
-          <ConnectionBadge status={status} />
+          <div className="room-panel-actions">
+            <ConnectionBadge status={status} />
+            <button className="button-outline room-leave-action" onClick={onLeaveRoom}>Leave room</button>
+          </div>
         </>
       ) : (
         <>

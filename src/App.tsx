@@ -173,6 +173,18 @@ function App() {
     setPath(to);
   };
 
+  const leaveRoom = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("room");
+    if (hostPage) {
+      url.pathname = "/game";
+      setPath("/game");
+    }
+    window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    setRoomCode(null);
+    setRoomActionError(null);
+  };
+
   const createRoom = async () => {
     setCreatingRoom(true);
     setRoomActionError(null);
@@ -418,6 +430,7 @@ function App() {
     onCreateRoom: () => { void createRoom(); },
     onJoinRoom: joinRoom,
     onCopyPlayerLink: () => { void copyPlayerLink(); },
+    onLeaveRoom: leaveRoom,
   };
 
   const pageProps = {

@@ -52,7 +52,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .room-connection.connected i { background: #2c9263; box-shadow: 0 0 0 3px #2c92631c; }
 .room-connection.connecting i, .room-connection.reconnecting i { background: #d18413; animation: room-pulse 1.2s ease-in-out infinite; }
 .room-connection.error i { background: #d95552; }
+.room-panel-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .room-action { padding: 9px 14px; white-space: nowrap; }
+.room-leave-action { padding: 8px 11px; white-space: nowrap; }
 .room-action:disabled { opacity: .7; cursor: wait; }
 .room-join-form { display: flex; gap: 8px; }
 .room-join-form input { width: 150px; border: 1px solid #c9bda7; background: #f6efdf; padding: 9px 10px; color: var(--ink); font: 700 12px "Nunito", sans-serif; letter-spacing: .12em; }
@@ -63,6 +65,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .room-panel-copy { flex-basis: calc(100% - 120px); }
   .room-connection { margin-left: auto; }
   .room-action { margin-left: auto; }
+  .room-panel-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+  .room-panel-actions .room-connection, .room-panel-actions .room-action { margin-left: 0; }
   .room-join-form { width: 100%; }
   .room-join-form input { flex: 1; min-width: 0; }
   .room-error { flex-basis: 100%; }
