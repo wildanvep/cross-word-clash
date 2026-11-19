@@ -153,7 +153,7 @@ function App() {
     state,
     setState,
   );
-  const hostSessionActive = hostPage && (!roomCode || roomConnection.status === "connected");
+  const hostSessionActive = hostPage && Boolean(roomCode) && roomConnection.status === "connected";
 
   useEffect(() => {
     const handleNavigation = () => {
@@ -429,8 +429,17 @@ function App() {
 
   return (
     <div className="app-shell">
-      {hostPage && roomCode && !hostSessionActive
-        ? <HostAccessGate state={state} status={roomConnection.status} error={roomConnection.error} navigate={navigate} />
+      {hostPage && !hostSessionActive
+        ? <HostAccessGate
+          state={state}
+          roomCode={roomCode}
+          status={roomConnection.status}
+          error={roomConnection.error}
+          actionError={roomActionError}
+          creating={creatingRoom}
+          onCreateRoom={() => { void createRoom(); }}
+          navigate={navigate}
+        />
         : hostPage
         ? <HostPage {...pageProps} completed={completed} revealed={revealed} maxScore={maxScore} totalPoints={totalPoints} />
         : <PlayerPage {...pageProps} completed={completed} />}
@@ -500,27 +509,41 @@ function BrandHeader({ hostPage, navigate, state }: Pick<SharedProps, "hostPage"
 
 function HostAccessGate({
   state,
+  roomCode,
   status,
   error,
+  actionError,
+  creating,
+  onCreateRoom,
   navigate,
 }: {
   state: GameState;
+  roomCode: string | null;
   status: RoomConnectionStatus;
   error: string | null;
+  actionError: string | null;
+  creating: boolean;
+  onCreateRoom: () => void;
   navigate: (to: "/game" | "/host") => void;
 }) {
-  const message = status === "connecting" || status === "reconnecting"
-    ? "Verifying this device's Host Desk access…"
-    : error ?? "This device does not have Host Desk access for this room.";
+  const needsRoom = !roomCode;
+  const message = needsRoom
+    ? "Create a live room before opening Host Desk. Host controls and answers stay locked until then."
+    : status === "connecting" || status === "reconnecting"
+      ? "Verifying this device's Host Desk access…"
+      : error ?? "This device does not have Host Desk access for this room.";
 
   return (
     <main className="host-page host-access-page">
       <BrandHeader hostPage navigate={navigate} state={state} />
       <section className="host-access-message" role={status === "error" ? "alert" : "status"}>
-        <span className="eyebrow">LIVE ROOM</span>
-        <h1>Host access required</h1>
+        <span className="eyebrow">{needsRoom ? "START A LIVE ROOM" : "LIVE ROOM"}</span>
+        <h1>{needsRoom ? "Create a room first" : "Host access required"}</h1>
         <p>{message}</p>
-        <p>Open the Host Desk on an authorized device, or return to the Player screen.</p>
+        {needsRoom
+          ? <button className="button-primary" onClick={onCreateRoom} disabled={creating}>{creating ? "Creating room…" : "Create live room"}</button>
+          : <p>Open the Host Desk on an authorized device, or return to the Player screen.</p>}
+        {actionError && <p className="host-access-error" role="alert">{actionError}</p>}
         <button className="button-primary" onClick={() => navigate("/game")}>Return to Player screen</button>
       </section>
     </main>
