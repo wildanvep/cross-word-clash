@@ -624,7 +624,7 @@ function ClueLists({ state, selectedClue, chooseClue, compact = false }: Pick<Sh
                 onClick={() => chooseClue(clue)}
               >
                 <span className="clue-index">{String(clue.number).padStart(2, "0")}</span>
-                <span className="clue-copy"><span>Listen for this clue from your host.</span>{!compact && <small>{clue.difficulty}</small>}</span>
+                <span className="clue-copy"><span>Listen to the host.</span>{!compact && <small>{clue.difficulty}</small>}</span>
                 <span className="clue-points">{clue.points}<small>PTS</small></span>
                 {clue.status === "Correct" || clue.status === "Skipped" ? <span className="clue-check">✓</span> : null}
               </button>

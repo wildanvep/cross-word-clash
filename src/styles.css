@@ -792,3 +792,93 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
 @media (prefers-reduced-motion: reduce) {
   .timeout-dialog { animation: none; }
 }
+
+@media (min-width: 791px) {
+  .player-page .masthead { padding-bottom: 5px; }
+  .player-page .room-panel { gap: 8px; margin-top: 7px; padding: 6px 10px; }
+  .player-page .room-panel-copy { display: flex; align-items: baseline; gap: 8px; }
+  .player-page .room-panel-copy small { display: none; }
+  .player-page .room-panel-copy strong { font-size: 14px; }
+  .player-page .room-action { padding: 6px 10px; }
+  .player-page .room-join-form input { width: 130px; padding: 6px 8px; }
+  .player-page .player-toolbar { padding: 3px 0; font-size: 9px; }
+  .player-page .player-layout {
+    grid-template-columns: minmax(0, 1.8fr) minmax(270px, .8fr);
+    gap: 14px;
+    padding: 3px 0 0;
+  }
+  .player-page .section-heading { margin-bottom: 0; }
+  .player-page .section-heading h2 { font-size: 18px; }
+  .player-page .section-heading p { display: none; }
+  .player-page .section-stamp { padding: 3px 6px; font-size: 8px; }
+  .player-page .crossword-paper { padding: 4px 8px; }
+  .player-page .grid-heading { margin-bottom: 2px; padding-bottom: 2px; font-size: 8px; }
+  .player-page .crossword-grid {
+    grid-template-columns: repeat(13, minmax(0, 1fr));
+    width: min(100%, 58vh, 620px);
+    height: auto;
+  }
+  .player-page .grid-footnote { padding-top: 2px; font-size: 7px; }
+  .player-page .active-question { min-height: 52px; margin-top: 3px; padding: 4px 8px 3px; }
+  .player-page .question-label { font-size: 8px; }
+  .player-page .question-content { gap: 8px; padding-top: 0; }
+  .player-page .question-count { padding-right: 8px; font-size: 20px; }
+  .player-page .question-text p { font-size: 13px; }
+  .player-page .question-text small, .player-page .question-turn small { margin-top: 3px; font-size: 7px; }
+  .player-page .question-turn { min-width: 80px; padding-left: 8px; }
+  .player-page .question-turn strong { font-size: 10px; }
+  .player-page .public-timer { top: 14px; right: 9px; }
+  .player-page .public-timer strong { font-size: 18px; }
+  .player-page .player-side { overflow: hidden; }
+  .player-page .side-section { padding-bottom: 4px; }
+  .player-page .side-title { padding-bottom: 3px; }
+  .player-page .side-title h2 { font-size: 16px; }
+  .player-page .clue-lists.compact { gap: 5px; }
+  .player-page .clue-column h3 { margin: 4px 0 2px; font-size: 8px; }
+  .player-page .direction-icon { font-size: 13px; }
+  .player-page .clue-total { font-size: 7px; }
+  .player-page .clue-item { min-height: 28px; gap: 5px; padding: 3px 4px; }
+  .player-page .clue-index { width: 17px; font-size: 12px; }
+  .player-page .clue-copy { font-size: 9px; line-height: 1.2; }
+  .player-page .clue-copy > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .player-page .clue-points { font-size: 9px; }
+  .player-page .clue-points small { display: block; font-size: 6px; }
+  .player-page .leaderboard-section { padding-top: 5px; }
+  .player-page .scoreboard { margin-top: 2px; }
+  .player-page .score-row { gap: 5px; padding: 3px 2px; }
+  .player-page .rank-number { font-size: 10px; }
+  .player-page .score-team { font-size: 10px; }
+  .player-page .score-team small { display: block; font-size: 7px; }
+  .player-page .score-row > strong { min-width: 38px; font-size: 15px; }
+  .player-page .score-row > strong small { font-size: 7px; }
+  .player-page .editorial-note, .player-page .progress-stamp { display: none; }
+}
+
+@media (min-width: 791px) and (max-height: 650px) {
+  .player-page { padding-top: 7px; }
+  .player-page .masthead { padding-bottom: 2px; }
+  .player-page .brand-title { margin: 2px 0; font-size: 22px; }
+  .player-page .brand-subtitle { display: none; }
+  .player-page .room-panel { margin-top: 4px; padding: 3px 8px; }
+  .player-page .room-panel-copy .eyebrow { display: none; }
+  .player-page .room-panel-copy strong { font-size: 12px; }
+  .player-page .room-action { padding: 4px 7px; font-size: 10px; }
+  .player-page .room-join-form input { padding: 4px 7px; font-size: 10px; }
+  .player-page .player-toolbar { padding: 2px 0; font-size: 8px; }
+  .player-page .section-heading h2 { font-size: 16px; }
+  .player-page .section-stamp, .player-page .grid-heading, .player-page .grid-footnote, .player-page .page-footer { display: none; }
+  .player-page .crossword-grid { width: min(100%, 46vh, 620px); }
+  .player-page .clue-item { min-height: 20px; gap: 2px; padding: 1px 2px; }
+  .player-page .clue-index { width: 12px; font-size: 10px; }
+  .player-page .clue-copy { font-size: 8px; line-height: 1.1; }
+  .player-page .clue-points { font-size: 8px; }
+  .player-page .clue-points small { display: inline; margin-left: 2px; font-size: 6px; }
+  .player-page .score-row { min-height: 18px; gap: 5px; padding: 1px 2px; }
+  .player-page .rank-number, .player-page .score-team { font-size: 9px; }
+  .player-page .score-team small { display: none; }
+  .player-page .score-row > strong { min-width: 34px; font-size: 14px; }
+  .player-page .active-question { min-height: 42px; margin-top: 2px; padding: 2px 7px; }
+  .player-page .empty-question { margin-top: 4px; font-size: 12px; }
+  .player-page .question-content { padding-bottom: 20px; }
+  .player-page .public-timer { top: 8px; }
+}
