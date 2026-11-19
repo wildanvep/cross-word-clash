@@ -38,10 +38,7 @@ export interface GameState {
   selectedTeamId: string | null;
   currentRound: number;
   gameStatus: GameStatus;
-  timerDuration: number;
-  timerEndsAt: number | null;
-  pausedTimeLeft: number;
-  message: { type: "correct" | "incorrect" | "time" | "timeout" | "bonus"; text: string; id: number } | null;
+  message: { type: "correct" | "incorrect" | "pass" | "bonus"; text: string; id: number } | null;
   resultStep: number;
 }
 
@@ -171,9 +168,6 @@ export function createInitialState(): GameState {
     selectedTeamId: teams[0].id,
     currentRound: 1,
     gameStatus: "ready",
-    timerDuration: 30,
-    timerEndsAt: null,
-    pausedTimeLeft: 30,
     message: null,
     resultStep: 0,
   };

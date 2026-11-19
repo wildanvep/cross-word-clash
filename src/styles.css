@@ -94,11 +94,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .cell-letter { position: absolute; inset: 19% 0 0; display: flex; justify-content: center; align-items: center; font: 600 clamp(14px, 2.25vw, 25px) "Playfair Display", Georgia, serif; }
 .grid-footnote { color: #817563; display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 8px; padding-top: 12px; }
 .grid-footnote span { color: var(--burgundy); font-size: 11px; }
-.active-question { margin-top: 18px; padding: 14px 15px 11px; border-top: 1px solid #c5b89f; border-bottom: 1px solid #c5b89f; position: relative; min-height: 110px; background: #eee5d3; }
+.active-question { margin-top: 18px; padding: 14px 15px 11px; border-top: 1px solid #c5b89f; border-bottom: 1px solid #c5b89f; position: relative; min-height: 84px; background: #eee5d3; }
 .question-label { font: 9px "Special Elite", monospace; letter-spacing: .15em; color: var(--burgundy); display: flex; align-items: center; gap: 8px; }
 .question-asterisk { font-size: 15px; }
 .question-line { flex: 1; border-top: 1px solid #d3c7b1; }
-.question-content { display: flex; align-items: center; gap: 13px; padding: 10px 100px 0 0; }
+.question-content { display: flex; align-items: center; gap: 13px; padding: 10px 0 0; }
 .question-count { font: 26px "Playfair Display", serif; color: var(--burgundy); border-right: 1px solid var(--line); padding-right: 12px; text-align: center; }
 .question-count span { display: block; font: 8px "Special Elite", monospace; letter-spacing: .08em; color: #736b5b; }
 .question-text { flex: 1; }
@@ -107,12 +107,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .question-turn { text-align: right; border-left: 1px solid var(--line); padding-left: 12px; min-width: 100px; }
 .question-turn strong { display: block; color: var(--forest); font: 600 12px "Playfair Display", Georgia, serif; margin-top: 6px; }
 .empty-question { font: italic 15px "Playfair Display", Georgia, serif; color: #877d6a; margin: 16px 0 0; }
-.public-timer { position: absolute; right: 12px; top: 31px; min-width: 73px; text-align: center; color: var(--forest); }
-.public-timer strong { display: block; font: 22px "Special Elite", monospace; }
-.public-timer .timer-caption { display: block; font: 8px "Special Elite", monospace; letter-spacing: .09em; color: #837863; margin-bottom: 2px; }
-.clock-mark { color: var(--burgundy); font-size: 9px; }
-.urgent strong, .host-timer.urgent strong { color: var(--burgundy); animation: tick-pulse .8s infinite alternate; }
-@keyframes tick-pulse { to { opacity: .48; } }
 .player-side { display: flex; flex-direction: column; min-width: 0; }
 .side-section { padding-bottom: 14px; }
 .side-title { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #bdb099; padding: 0 0 8px; }
@@ -158,7 +152,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .footer-right { margin-left: auto; }
 .announcement { text-align: center; padding: 10px; margin: 10px 0 -12px; font: 17px "Special Elite", monospace; letter-spacing: .1em; animation: stamp-in .3s ease-out; }
 .announcement-correct { color: var(--forest); border: 1px solid #71846b; background: #e4e9dc; }
-.announcement-incorrect, .announcement-time { color: var(--burgundy); border: 1px solid #a96869; background: #f0dfd7; }
+.announcement-incorrect, .announcement-pass { color: var(--burgundy); border: 1px solid #a96869; background: #f0dfd7; }
 .announcement-bonus { color: var(--gold); }
 @keyframes stamp-in { from { opacity: 0; transform: scale(1.05) rotate(-1deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 
@@ -249,17 +243,8 @@ kbd { border: 1px solid #c5b89f; border-radius: 2px; padding: 3px 5px; backgroun
 .steal-box small { font-family: "Special Elite", monospace; }
 .steal-box label { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: #765d54; font-size: 9px; }
 .steal-box input { accent-color: var(--burgundy); }
-.host-timer { margin: 13px 0 10px; text-align: center; padding: 9px; background: #eee5d3; border-top: 1px solid #d1c5ae; border-bottom: 1px solid #d1c5ae; }
-.host-timer span { display: block; color: #817765; font: 8px "Special Elite", monospace; letter-spacing: .12em; }
-.host-timer strong { display: block; color: var(--forest); font: 31px "Special Elite", monospace; margin-top: 4px; }
-.timer-duration-label { margin-top: 4px; }
-.timer-setting { display: flex; gap: 7px; }
-.timer-setting input { min-width: 0; flex: 1; border: 1px solid #c9bda7; background: #f4ecd9; padding: 7px; color: #494235; font: 11px "Special Elite", monospace; }
-.timer-setting button { border: 1px solid #c3b69e; background: transparent; padding: 0 9px; color: #756b59; font-size: 9px; cursor: pointer; }
 .clue-navigation { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .clue-navigation button { border: 1px solid #c7baa2; background: transparent; padding: 6px 4px; color: #756b59; font-size: 9px; cursor: pointer; }
-.timer-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 8px; border: 0; background: var(--forest); color: #f4ecd9; padding: 10px; font: 12px "Playfair Display", serif; cursor: pointer; }
-.timer-button kbd { color: #e2d9c7; border-color: #768170; background: #435846; }
 .answer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .answer-actions button { padding: 9px 4px; cursor: pointer; font: 10px "DM Sans", sans-serif; }
 .correct-button { background: #e0e7d8; border: 1px solid #9da78f; color: var(--forest); }
@@ -362,12 +347,8 @@ kbd { border: 1px solid #c5b89f; border-radius: 2px; padding: 3px 5px; backgroun
   .player-side { display: block; }
   .clue-lists { gap: 9px; }
   .clue-copy { font-size: 10px; }
-  .question-content { padding-right: 0; padding-bottom: 28px; }
+  .question-content { padding-bottom: 0; }
   .question-turn { display: none; }
-  .public-timer { top: auto; bottom: 8px; right: 12px; display: flex; align-items: baseline; gap: 5px; }
-  .public-timer .timer-caption { margin: 0; }
-  .public-timer strong { font-size: 17px; }
-  .clock-mark { display: none; }
   .host-intro { align-items: start; flex-direction: column; gap: 12px; }
   .keyboard-hint { align-items: start; }
   .overview-strip { grid-template-columns: repeat(3, 1fr); }
@@ -409,7 +390,6 @@ kbd { border: 1px solid #c5b89f; border-radius: 2px; padding: 3px 5px; backgroun
   .active-question { flex: 0 0 auto; min-height: 60px; margin-top: 4px; padding: 4px 10px 3px; }
   .question-content { padding-top: 2px; }
   .empty-question { margin-top: 8px; }
-  .public-timer { top: 20px; }
   .player-side { min-height: 0; overflow: hidden; }
   .side-section { padding-bottom: 8px; }
   .side-title { padding-bottom: 5px; }
@@ -474,12 +454,8 @@ kbd { border: 1px solid #c5b89f; border-radius: 2px; padding: 3px 5px; backgroun
   .field-label { margin: 7px 0 3px; }
   .team-picker { padding: 5px 7px; }
   .steal-box { gap: 3px; margin-top: 6px; padding: 6px; }
-  .host-timer { margin: 7px 0 5px; padding: 5px; }
-  .host-timer strong { font-size: 24px; margin-top: 1px; }
-  .timer-setting input { padding: 5px; }
   .clue-navigation { margin-top: 5px; }
   .clue-navigation button { padding: 4px; }
-  .timer-button { margin-top: 5px; padding: 7px; }
   .answer-actions { margin-top: 5px; gap: 4px; }
   .answer-actions button { padding: 6px 4px; }
   .answer-actions .pass-button { padding: 4px; }
@@ -610,8 +586,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .question-turn { border-color: #eadfae; }
 .question-turn strong { color: #159b87; font-family: "Fredoka", sans-serif; }
 .empty-question { color: #89839b; font-family: "Nunito", sans-serif; }
-.public-timer { color: #159b87; }
-.public-timer strong { font-family: "Fredoka", sans-serif; }
 
 .side-section, .leaderboard-section { border-color: #ece9f6; }
 .side-title h2 { font-size: 19px; }
@@ -646,7 +620,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .page-footer i { color: #fa806d; }
 .announcement { border-radius: 14px; font: 800 16px "Fredoka", sans-serif; }
 .announcement-correct { color: #128876; border: 0; background: #d8f5e9; }
-.announcement-incorrect, .announcement-time { color: #d95552; border: 0; background: #ffebe5; }
+.announcement-incorrect, .announcement-pass { color: #d95552; border: 0; background: #ffebe5; }
 .announcement-bonus { color: #c18412; }
 
 .host-intro h1, .final-sheet h1 { color: #302d59; font-family: "Fredoka", sans-serif; }
@@ -667,7 +641,7 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
 .team-select-dot { border-color: #b7b2d1; }
 .team-select-dot.selected { border-color: #7655d9; }
 .team-name-cell input { color: #302d59; font-family: "Nunito", sans-serif; font-weight: 800; }
-.score-edit, .manager-clue-row select, .point-input, .team-picker, .timer-setting input, .edit-dialog textarea, .edit-dialog > input {
+.score-edit, .manager-clue-row select, .point-input, .team-picker, .edit-dialog textarea, .edit-dialog > input {
   border: 1px solid #e0def1;
   border-radius: 9px;
   background: #fbfaff;
@@ -697,7 +671,7 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
 .host-hint-list p { color: #555372; font-family: "Nunito", sans-serif; }
 .host-hint-list p b { color: #7655d9; font-family: "Nunito", sans-serif; }
 .host-hint-list p:first-child { color: #81809b; }
-.next-hint-button, .team-picker, .timer-setting button, .clue-navigation button {
+.next-hint-button, .team-picker, .clue-navigation button {
   border: 0;
   border-radius: 9px;
   background: #e9e4ff;
@@ -705,26 +679,21 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
   font-family: "Nunito", sans-serif;
   font-weight: 800;
 }
-.next-hint-button:hover, .timer-setting button:hover, .clue-navigation button:hover { background: #ded6ff; }
+.next-hint-button:hover, .clue-navigation button:hover { background: #ded6ff; }
 .active-clue-meta { border-color: #e1def2; color: #85839e; font-family: "Nunito", sans-serif; }
 .active-clue-meta b { color: #148675; }
 .field-label { color: #777694; font-family: "Nunito", sans-serif; font-weight: 800; }
 .steal-box { border: 0; border-left: 4px solid #fa806d; border-radius: 10px; background: #fff0eb; color: #d95552; }
 .steal-box span, .steal-box small, .steal-box label { color: #8d6562; }
 .steal-box input { accent-color: #fa806d; }
-.host-timer { border: 0; border-radius: 14px; background: #e5f7f1; }
-.host-timer span { color: #6b8e83; font-family: "Nunito", sans-serif; font-weight: 800; }
-.host-timer strong { color: #148675; font-family: "Fredoka", sans-serif; }
-.timer-setting input { color: #393858; }
-.timer-button, .host-start-button, .start-game-button {
+.host-start-button, .start-game-button {
   border: 0;
   border-radius: 10px;
   background: #159b87;
   color: white;
   font: 800 12px "Nunito", sans-serif;
 }
-.timer-button:hover, .host-start-button:hover, .start-game-button:hover { background: #108674; }
-.timer-button kbd { border: 1px solid #ffffff50; border-radius: 5px; background: #ffffff20; color: white; }
+.host-start-button:hover, .start-game-button:hover { background: #108674; }
 .correct-button { border: 0; border-radius: 10px; background: #d8f5e9; color: #128876; font-weight: 800; }
 .incorrect-button { border: 0; border-radius: 10px; background: #ffebe5; color: #d95552; font-weight: 800; }
 .answer-actions .pass-button { border: 1px solid #e2def3; border-radius: 9px; color: #777694; }
@@ -763,36 +732,6 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
   .brand-title { font-size: 27px; }
 }
 
-.timeout-backdrop { z-index: 20; background: #29284b99; }
-.timeout-dialog {
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 22px 70px #29284b40;
-  animation: timeout-pop .24s cubic-bezier(.2, .8, .2, 1) both;
-}
-.timeout-icon {
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  margin: 0 auto;
-  border-radius: 19px;
-  background: #fff1bd;
-  color: #d18413;
-  font-size: 29px;
-}
-.timeout-dialog .eyebrow { margin: 14px 0 5px; }
-.timeout-dialog h2 { margin: 0 0 7px; font: 700 clamp(32px, 5vw, 42px) "Fredoka", sans-serif; }
-.timeout-dialog > p:not(.eyebrow) { margin: 0 0 18px; font: 700 15px/1.5 "Nunito", sans-serif; }
-.timeout-dialog .button-primary { min-width: 140px; padding: 10px 20px; }
-@keyframes timeout-pop {
-  from { opacity: 0; transform: translateY(8px) scale(.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .timeout-dialog { animation: none; }
-}
-
 @media (min-width: 791px) {
   .player-page .masthead { padding-bottom: 5px; }
   .player-page .room-panel { gap: 8px; margin-top: 7px; padding: 6px 10px; }
@@ -827,8 +766,6 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
   .player-page .question-text small, .player-page .question-turn small { margin-top: 3px; font-size: 7px; }
   .player-page .question-turn { min-width: 80px; padding-left: 8px; }
   .player-page .question-turn strong { font-size: 10px; }
-  .player-page .public-timer { top: 14px; right: 9px; }
-  .player-page .public-timer strong { font-size: 18px; }
   .player-page .player-side { overflow: hidden; }
   .player-page .side-section { padding-bottom: 4px; }
   .player-page .side-title { padding-bottom: 3px; }
@@ -886,6 +823,5 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
   .player-page .score-row > strong { min-width: 34px; font-size: 14px; }
   .player-page .active-question { min-height: 42px; margin-top: 2px; padding: 2px 7px; }
   .player-page .empty-question { margin-top: 4px; font-size: 12px; }
-  .player-page .question-content { padding-bottom: 20px; }
-  .player-page .public-timer { top: 8px; }
+  .player-page .question-content { padding-bottom: 0; }
 }

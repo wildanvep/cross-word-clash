@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RoomPanel, { type RoomPanelProps } from "./RoomPanel";
 import { hostTokenStorageKey, useRoomConnection, type RoomConnectionStatus } from "./realtime";
 import {
@@ -21,7 +21,15 @@ function loadState(): GameState {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return createInitialState();
-    const parsed = JSON.parse(stored) as Partial<GameState> & { clues?: (Partial<Clue> & { id: string; text?: string })[] };
+    const parsed = JSON.parse(stored) as Omit<Partial<GameState>, "message"> & {
+      clues?: (Partial<Clue> & { id: string; text?: string })[];
+      timerDuration?: unknown;
+      timerEndsAt?: unknown;
+      pausedTimeLeft?: unknown;
+      message?: GameState["message"]
+        | { type: "time"; text: string; id: number }
+        | { type: "timeout"; text: string; id: number };
+    };
     if (!Array.isArray(parsed.teams) || !Array.isArray(parsed.clues) || parsed.clues.length === 0) {
       throw new Error("Saved game data is incomplete.");
     }
@@ -69,10 +77,18 @@ function loadState(): GameState {
       });
       validatePuzzle(clues);
     }
-    const timerDuration = parsed.timerDuration === 60 ? defaults.timerDuration : parsed.timerDuration ?? defaults.timerDuration;
-    const pausedTimeLeft = parsed.pausedTimeLeft === 60 ? defaults.pausedTimeLeft : parsed.pausedTimeLeft ?? timerDuration;
+    const savedState = { ...parsed };
+    delete savedState.timerDuration;
+    delete savedState.timerEndsAt;
+    delete savedState.pausedTimeLeft;
+    let message: GameState["message"] = null;
+    if (parsed.message?.type === "time" && parsed.message.text === "CLUE PASSED") {
+      message = { ...parsed.message, type: "pass" };
+    } else if (parsed.message && parsed.message.type !== "time" && parsed.message.type !== "timeout") {
+      message = parsed.message;
+    }
     const selectedTeamId = teams.find((team) => team.id === parsed.selectedTeamId)?.id ?? teams[0]?.id ?? null;
-    return { ...defaults, ...parsed, teams, selectedTeamId, clues, timerDuration, pausedTimeLeft };
+    return { ...defaults, ...savedState, teams, selectedTeamId, clues, message };
   } catch (error) {
     console.error("Could not load the saved Crossword Club game.", error);
     return createInitialState();
@@ -128,7 +144,6 @@ function App() {
   const [roomActionError, setRoomActionError] = useState<string | null>(null);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"reset" | "reset-game" | "finish" | "reveal" | null>(null);
-  const [seconds, setSeconds] = useState(60);
   const hostPage = path === "/host";
   const hostToken = roomCode ? localStorage.getItem(hostTokenStorageKey(roomCode)) : null;
   const roomConnection = useRoomConnection(
@@ -214,52 +229,9 @@ function App() {
     }
   };
 
-  const remaining = useCallback(() => {
-    if (!state.timerEndsAt) return state.pausedTimeLeft;
-    return Math.max(0, Math.ceil((state.timerEndsAt - Date.now()) / 1000));
-  }, [state.timerEndsAt, state.pausedTimeLeft]);
-
-  useEffect(() => {
-    setSeconds(remaining());
-    const interval = window.setInterval(() => setSeconds(remaining()), 250);
-    return () => window.clearInterval(interval);
-  }, [remaining]);
-
-  useEffect(() => {
-    if (!hostSessionActive || seconds !== 0 || !state.timerEndsAt) return;
-    setState((current) => {
-      if (current.timerEndsAt === null) return current;
-      const team = current.teams.find((entry) => entry.id === current.selectedTeamId);
-      const clue = current.clues.find((entry) => entry.id === current.selectedClueId);
-      if (!team || !clue || clue.awardedTeamId || clue.status === "Correct" || clue.status === "Skipped") {
-        return { ...current, timerEndsAt: null, pausedTimeLeft: 0, message: { type: "time", text: "TIME'S UP!", id: Date.now() } };
-      }
-
-      const nextTeam = current.teams.find((entry) => entry.id !== team.id && !clue.attemptedTeamIds.includes(entry.id));
-      return {
-        ...current,
-        selectedTeamId: nextTeam?.id ?? current.selectedTeamId,
-        teams: current.teams.map((entry) => entry.id === team.id ? { ...entry, incorrectCount: entry.incorrectCount + 1 } : entry),
-        clues: current.clues.map((entry) => entry.id === clue.id ? {
-          ...entry,
-          status: nextTeam ? "Incorrect" : "Skipped",
-          revealedHintCount: 0,
-          attemptedTeamIds: entry.attemptedTeamIds.includes(team.id) ? entry.attemptedTeamIds : [...entry.attemptedTeamIds, team.id],
-        } : entry),
-        timerEndsAt: null,
-        pausedTimeLeft: 0,
-        message: {
-          type: "timeout",
-          text: `${team.name} passed.${nextTeam ? ` ${nextTeam.name} is up next.` : " No teams are left to answer."}`,
-          id: Date.now(),
-        },
-      };
-    });
-  }, [hostSessionActive, seconds, state.timerEndsAt, setState]);
-
   useEffect(() => {
     const messageId = state.message?.id;
-    if (!messageId || state.message?.type === "timeout") return;
+    if (!messageId) return;
     const timeout = window.setTimeout(() => {
       setState((current) => current.message?.id === messageId ? { ...current, message: null } : current);
     }, 7000);
@@ -287,19 +259,6 @@ function App() {
     setState((current) => applyClueSelection(current, clue.id));
   };
 
-  const timerStartPause = () => {
-    setState((current) => {
-      if (current.gameStatus === "paused" || current.gameStatus === "finished") return current;
-      if (current.timerEndsAt) {
-        const left = Math.max(0, Math.ceil((current.timerEndsAt - Date.now()) / 1000));
-        return { ...current, timerEndsAt: null, pausedTimeLeft: left };
-      }
-      const left = current.pausedTimeLeft || current.timerDuration;
-      return { ...current, timerEndsAt: Date.now() + left * 1000, pausedTimeLeft: left, gameStatus: current.gameStatus === "ready" ? "playing" : current.gameStatus };
-    });
-  };
-
-  const resetTimer = () => setState((current) => ({ ...current, timerEndsAt: null, pausedTimeLeft: current.timerDuration }));
   const selectedClue = state.clues.find((clue) => clue.id === state.selectedClueId) ?? null;
   const selectedTeam = state.teams.find((team) => team.id === state.selectedTeamId) ?? null;
   const grid = useMemo(() => getGrid(state.clues), [state.clues]);
@@ -320,8 +279,6 @@ function App() {
           revealedHintCount: 0,
           attemptedTeamIds: entry.attemptedTeamIds.includes(selectedTeam.id) ? entry.attemptedTeamIds : [...entry.attemptedTeamIds, selectedTeam.id],
         } : entry),
-        timerEndsAt: null,
-        pausedTimeLeft: current.timerDuration,
         message: { type: "incorrect", text: "WRONG ANSWER — STEAL OPPORTUNITY", id: Date.now() },
       };
     });
@@ -342,8 +299,6 @@ function App() {
           ? { ...entry, score: entry.score + clue.points, correctCount: entry.correctCount + 1, completedClues: entry.completedClues + 1 }
           : entry),
         clues: current.clues.map((entry) => entry.id === clue.id ? { ...entry, status: "Correct", awardedTeamId: teamId, awardedPoints: clue.points } : entry),
-        timerEndsAt: null,
-        pausedTimeLeft: current.timerDuration,
         message: { type: "correct", text: `${team.name.toUpperCase()} +${clue.points} POINTS`, id: Date.now() },
       };
     });
@@ -352,7 +307,7 @@ function App() {
   const passClue = () => {
     if (!selectedClue) return;
     updateClue(selectedClue.id, (clue) => ({ ...clue, status: "Skipped" }));
-    setState((current) => ({ ...current, timerEndsAt: null, pausedTimeLeft: current.timerDuration, message: { type: "time", text: "CLUE PASSED", id: Date.now() } }));
+    setState((current) => ({ ...current, message: { type: "pass", text: "CLUE PASSED", id: Date.now() } }));
   };
 
   const adjustScore = (teamId: string, delta: number) => {
@@ -417,7 +372,7 @@ function App() {
   };
 
   const finishGame = () => {
-    setState((current) => ({ ...current, gameStatus: "finished", timerEndsAt: null, pausedTimeLeft: current.timerDuration, resultStep: 0 }));
+    setState((current) => ({ ...current, gameStatus: "finished", resultStep: 0 }));
     setConfirmAction(null);
     if (!hostPage) navigate("/game");
   };
@@ -434,10 +389,7 @@ function App() {
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) {
         return;
       }
-      if (event.key === " ") {
-        event.preventDefault();
-        timerStartPause();
-      } else if (event.key === "Enter" && selectedClue && selectedTeam) {
+      if (event.key === "Enter" && selectedClue && selectedTeam) {
         event.preventDefault();
         markCorrect();
       } else if (["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"].includes(event.key)) {
@@ -469,8 +421,8 @@ function App() {
   };
 
   const pageProps = {
-    state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams, grid, seconds,
-    chooseClue, timerStartPause, resetTimer, markCorrect, recordIncorrect, passClue, updateClue,
+    state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams, grid,
+    chooseClue, markCorrect, recordIncorrect, passClue, updateClue,
     adjustScore, changeTeamName, addTeam, removeTeam, resetClue, setConfirmAction, finishGame,
     roomPanelProps,
   };
@@ -511,10 +463,7 @@ type SharedProps = {
   selectedTeam: Team | null;
   sortedTeams: Team[];
   grid: ReturnType<typeof getGrid>;
-  seconds: number;
   chooseClue: (clue: Clue) => void;
-  timerStartPause: () => void;
-  resetTimer: () => void;
   markCorrect: (teamId?: string | null) => void;
   recordIncorrect: () => void;
   passClue: () => void;
@@ -575,21 +524,6 @@ function HostAccessGate({
         <button className="button-primary" onClick={() => navigate("/game")}>Return to Player screen</button>
       </section>
     </main>
-  );
-}
-
-function TimeoutPopup({ message, onDismiss }: { message: GameState["message"]; onDismiss: () => void }) {
-  if (message?.type !== "timeout") return null;
-  return (
-    <div className="modal-backdrop timeout-backdrop">
-      <section className="confirm-dialog timeout-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`timeout-title-${message.id}`} aria-describedby={`timeout-message-${message.id}`}>
-        <span className="timeout-icon">⏱</span>
-        <p className="eyebrow">TURN UPDATE</p>
-        <h2 id={`timeout-title-${message.id}`}>Time’s up!</h2>
-        <p id={`timeout-message-${message.id}`}>{message.text}</p>
-        <button className="button-primary" onClick={onDismiss}>Continue</button>
-      </section>
-    </div>
   );
 }
 
@@ -691,9 +625,9 @@ function Scoreboard({ teams, compact = false }: { teams: Team[]; compact?: boole
 }
 
 function PlayerPage(props: SharedProps & { completed: number }) {
-  const { state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams, grid, seconds, chooseClue, completed } = props;
+  const { state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams, grid, chooseClue, completed } = props;
   const progress = Math.round((completed / state.clues.length) * 100);
-  const activeMessage = state.message && state.message.type !== "timeout" && Date.now() - state.message.id < 7000;
+  const activeMessage = state.message && Date.now() - state.message.id < 7000;
   const finalTeams = orderedTeams(state.teams);
   const podiumTeams = finalTeams.filter((team) => teamRank(state.teams, team.id) <= 3);
 
@@ -762,11 +696,6 @@ function PlayerPage(props: SharedProps & { completed: number }) {
                 <div className="question-turn"><small>ANSWERING TEAM</small><strong>{selectedTeam?.name ?? "Choose a team"}</strong></div>
               </div>
             ) : <p className="empty-question">Your host will select a clue and read it aloud.</p>}
-            <div className={`public-timer ${seconds <= 10 ? "urgent" : ""}`}>
-              <span className="timer-caption">{state.timerEndsAt ? "TIME LEFT" : "THE CLOCK"}</span>
-              <strong>{`${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`}</strong>
-              <span className="clock-mark">✦</span>
-            </div>
           </div>
         </div>
         <aside className="player-side">
@@ -783,7 +712,6 @@ function PlayerPage(props: SharedProps & { completed: number }) {
         </aside>
       </section>
       <footer className="page-footer"><span>CROSSWORD CLASH</span><i>✦</i><span>TEAM 4 ENGLISH DAY</span><span className="footer-right">A LITTLE WORDPLAY GOES A LONG WAY</span></footer>
-      <TimeoutPopup message={state.message} onDismiss={() => setState((current) => current.message?.type === "timeout" ? { ...current, message: null } : current)} />
     </main>
   );
 }
@@ -804,8 +732,8 @@ function PodiumPlace({ team, place, visible }: { team?: Team; place: number; vis
 
 function HostPage(props: SharedProps & { completed: number; revealed: number; maxScore: number; totalPoints: number }) {
   const {
-    state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams, seconds,
-    chooseClue, timerStartPause, resetTimer, markCorrect, recordIncorrect, passClue, updateClue,
+    state, setState, hostPage, navigate, selectedClue, selectedTeam, sortedTeams,
+    chooseClue, markCorrect, recordIncorrect, passClue, updateClue,
     adjustScore, changeTeamName, addTeam, removeTeam, resetClue, setConfirmAction,
     completed, revealed, maxScore, totalPoints,
   } = props;
@@ -850,11 +778,7 @@ function HostPage(props: SharedProps & { completed: number; revealed: number; ma
 
   const toggleGame = () => setState((current) => {
     if (current.gameStatus === "finished") return current;
-    if (current.gameStatus === "playing") {
-      const left = current.timerEndsAt ? Math.max(0, Math.ceil((current.timerEndsAt - Date.now()) / 1000)) : current.pausedTimeLeft;
-      return { ...current, gameStatus: "paused", timerEndsAt: null, pausedTimeLeft: left };
-    }
-    return { ...current, gameStatus: "playing" };
+    return { ...current, gameStatus: current.gameStatus === "playing" ? "paused" : "playing" };
   });
 
   return (
@@ -864,7 +788,7 @@ function HostPage(props: SharedProps & { completed: number; revealed: number; ma
       <div className="host-intro">
         <div><span className="eyebrow">TEAM 4 ENGLISH DAY · HOST CONTROL</span><h1>Host Desk</h1><p>One desk. Every clue. Let the wordplay begin.</p></div>
         <div className="host-intro-tools">
-          <div className="keyboard-hint"><span>⌘ LIVE CONTROLS</span><small><kbd>SPACE</kbd> timer <kbd>ENTER</kbd> correct <kbd>←</kbd><kbd>→</kbd> clues</small></div>
+          <div className="keyboard-hint"><span>⌘ LIVE CONTROLS</span><small><kbd>ENTER</kbd> correct <kbd>←</kbd><kbd>→</kbd> clues</small></div>
           <div className="host-quick-actions">
             <button className="host-start-button" onClick={toggleGame}>{state.gameStatus === "playing" ? "Ⅱ Pause" : state.gameStatus === "paused" ? "▶ Resume" : "▶ Start"}</button>
             <div className="host-round-setting"><button aria-label="Previous round" onClick={() => setState((current) => ({ ...current, currentRound: Math.max(1, current.currentRound - 1) }))}>−</button><span>ROUND {String(state.currentRound).padStart(2, "0")}</span><button aria-label="Next round" onClick={() => setState((current) => ({ ...current, currentRound: current.currentRound + 1 }))}>+</button></div>
@@ -945,14 +869,7 @@ function HostPage(props: SharedProps & { completed: number; revealed: number; ma
               {state.teams.map((team) => <option key={team.id} value={team.id} disabled={Boolean(selectedClue?.attemptedTeamIds.includes(team.id) && !selectedClue.allowRepeatAttempts)}>{team.name}{selectedClue?.attemptedTeamIds.includes(team.id) ? " — already tried" : ""}</option>)}
             </select>
             {selectedClue?.status === "Incorrect" && <div className="steal-box"><strong>STEAL OPPORTUNITY</strong><span>Choose an eligible team; attempted teams are marked on the clue.</span>{selectedClue.attemptedTeamIds.length > 0 && <small>ALREADY TRIED: {state.teams.filter((team) => selectedClue.attemptedTeamIds.includes(team.id)).map((team) => team.name).join(", ")}</small>}<label><input type="checkbox" checked={selectedClue.allowRepeatAttempts} onChange={(event) => updateClue(selectedClue.id, (clue) => ({ ...clue, allowRepeatAttempts: event.target.checked }))} /> Allow a team to try this clue again</label></div>}
-            <div className={`host-timer ${seconds <= 10 ? "urgent" : ""}`}><span>TIME REMAINING</span><strong>{`${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`}</strong></div>
-            <label className="field-label timer-duration-label">TIMER LENGTH (SECONDS)</label>
-            <div className="timer-setting"><input type="number" min="5" max="600" step="1" value={state.timerDuration} onChange={(event) => {
-              const duration = Math.min(600, Math.max(5, Math.trunc(Number(event.target.value)) || 30));
-              setState((current) => ({ ...current, timerDuration: duration, pausedTimeLeft: duration, timerEndsAt: null }));
-            }} /><button onClick={resetTimer}>Reset clock</button></div>
             <div className="clue-navigation"><button onClick={() => moveClue(-1)}>← Previous clue</button><button onClick={() => moveClue(1)}>Next clue →</button></div>
-            <button className="timer-button" onClick={timerStartPause}>{state.timerEndsAt ? "Ⅱ  Pause timer" : seconds === 0 ? "↻  Restart timer" : "▶  Start timer"} <kbd>SPACE</kbd></button>
             <div className="answer-actions">
               <button className="correct-button" onClick={() => markCorrect()} disabled={!selectedClue || !selectedTeam || selectedClue.status === "Correct" || selectedClue.status === "Skipped"}>✓ Correct</button>
               <button className="incorrect-button" onClick={recordIncorrect} disabled={!selectedClue || !selectedTeam || selectedClue.status === "Correct" || selectedClue.status === "Skipped"}>× Incorrect</button>
@@ -962,7 +879,6 @@ function HostPage(props: SharedProps & { completed: number; revealed: number; ma
         </aside>
       </div>
       <footer className="page-footer"><span>CROSSWORD CLASH</span><i>✦</i><span>HOST DESK</span><span className="footer-right">EVERY GREAT GAME STARTS WITH A GOOD CLUE</span></footer>
-      <TimeoutPopup message={state.message} onDismiss={() => setState((current) => current.message?.type === "timeout" ? { ...current, message: null } : current)} />
       {editingClue && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingClueId(null); }} onKeyDown={(event) => { if (event.key === "Escape") setEditingClueId(null); }}>
           <section className="confirm-dialog edit-dialog" role="dialog" aria-modal="true" aria-labelledby="edit-title">
@@ -987,9 +903,9 @@ function OverviewItem({ label, value }: { label: string; value: string }) {
 
 function ConfirmDialog({ action, onCancel, onConfirm }: { action: "reset" | "reset-game" | "finish" | "reveal"; onCancel: () => void; onConfirm: () => void }) {
   const copy = {
-    reset: ["Reset this game?", "All scores, clue results, timer settings and revealed answers will return to the opening state."],
-    "reset-game": ["Reset this session?", "All scores, clue results, timer settings and revealed answers will return to the opening state."],
-    finish: ["Finish the game?", "The timer will stop and the final standings will be presented on the Player Screen."],
+    reset: ["Reset this game?", "All scores, clue results and revealed answers will return to the opening state."],
+    "reset-game": ["Reset this session?", "All scores, clue results and revealed answers will return to the opening state."],
+    finish: ["Finish the game?", "The final standings will be presented on the Player Screen."],
     reveal: ["Reveal every answer?", "All crossword answers will become visible to players. This cannot be hidden all at once."],
   }[action];
   return (
