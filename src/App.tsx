@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import RoomPanel, { type RoomPanelProps } from "./RoomPanel";
-import { hostTokenStorageKey, useRoomConnection } from "./realtime";
+import { hostTokenStorageKey, useRoomConnection, type RoomConnectionStatus } from "./realtime";
 import {
   createInitialState,
   getGrid,
@@ -134,6 +134,7 @@ function App() {
     state,
     setState,
   );
+  const hostSessionActive = hostPage && (!roomCode || roomConnection.status === "connected");
 
   useEffect(() => {
     const handleNavigation = () => {
@@ -221,7 +222,7 @@ function App() {
   }, [remaining]);
 
   useEffect(() => {
-    if (!hostPage || seconds !== 0 || !state.timerEndsAt) return;
+    if (!hostSessionActive || seconds !== 0 || !state.timerEndsAt) return;
     setState((current) => {
       if (current.timerEndsAt === null) return current;
       const team = current.teams.find((entry) => entry.id === current.selectedTeamId);
@@ -250,7 +251,7 @@ function App() {
         },
       };
     });
-  }, [hostPage, seconds, state.timerEndsAt, setState]);
+  }, [hostSessionActive, seconds, state.timerEndsAt, setState]);
 
   useEffect(() => {
     const messageId = state.message?.id;
@@ -418,7 +419,7 @@ function App() {
   };
 
   useEffect(() => {
-    if (!hostPage) return;
+    if (!hostSessionActive) return;
     const keyHandler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       if (event.key === "Escape") {
@@ -444,7 +445,7 @@ function App() {
     };
     window.addEventListener("keydown", keyHandler);
     return () => window.removeEventListener("keydown", keyHandler);
-  }, [hostPage, state, selectedClue, selectedTeam, confirmAction]);
+  }, [hostSessionActive, state, selectedClue, selectedTeam, confirmAction]);
 
   const completed = state.clues.filter((clue) => clue.status === "Correct" || clue.status === "Skipped").length;
   const revealed = state.clues.filter((clue) => clue.revealed).length;
@@ -472,7 +473,9 @@ function App() {
 
   return (
     <div className="app-shell">
-      {hostPage
+      {hostPage && roomCode && !hostSessionActive
+        ? <HostAccessGate state={state} status={roomConnection.status} error={roomConnection.error} navigate={navigate} />
+        : hostPage
         ? <HostPage {...pageProps} completed={completed} revealed={revealed} maxScore={maxScore} totalPoints={totalPoints} />
         : <PlayerPage {...pageProps} completed={completed} />}
       {confirmAction && (
@@ -539,6 +542,35 @@ function BrandHeader({ hostPage, navigate, state }: Pick<SharedProps, "hostPage"
         <button className={hostPage ? "active" : ""} onClick={() => navigate("/host")}>Host desk</button>
       </nav>
     </header>
+  );
+}
+
+function HostAccessGate({
+  state,
+  status,
+  error,
+  navigate,
+}: {
+  state: GameState;
+  status: RoomConnectionStatus;
+  error: string | null;
+  navigate: (to: "/game" | "/host") => void;
+}) {
+  const message = status === "connecting" || status === "reconnecting"
+    ? "Verifying this device's Host Desk access…"
+    : error ?? "This device does not have Host Desk access for this room.";
+
+  return (
+    <main className="host-page host-access-page">
+      <BrandHeader hostPage navigate={navigate} state={state} />
+      <section className="host-access-message" role={status === "error" ? "alert" : "status"}>
+        <span className="eyebrow">LIVE ROOM</span>
+        <h1>Host access required</h1>
+        <p>{message}</p>
+        <p>Open the Host Desk on an authorized device, or return to the Player screen.</p>
+        <button className="button-primary" onClick={() => navigate("/game")}>Return to Player screen</button>
+      </section>
+    </main>
   );
 }
 
