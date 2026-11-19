@@ -798,12 +798,6 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
 @media (min-width: 791px) and (max-height: 650px) {
   .player-page { padding-top: 7px; }
 
-  .host-access-page { min-height: min(80vh, 760px); display: flex; flex-direction: column; }
-  .host-access-message { width: min(540px, 100%); margin: auto; padding: clamp(24px, 5vw, 48px); border: 1px solid #c9bda5; background: #f7f1e5; text-align: center; position: relative; z-index: 1; }
-  .host-access-message .eyebrow { color: var(--burgundy); font-size: 9px; }
-  .host-access-message h1 { margin: 8px 0; color: #302d59; font: 600 clamp(28px, 4vw, 40px) "Fredoka", sans-serif; }
-  .host-access-message p { color: #756b5a; font: 13px/1.5 "Nunito", sans-serif; }
-  .host-access-message .button-primary { margin-top: 12px; }
   .player-page .masthead { padding-bottom: 2px; }
   .player-page .brand-title { margin: 2px 0; font-size: 22px; }
   .player-page .brand-subtitle { display: none; }
@@ -828,4 +822,28 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
   .player-page .active-question { min-height: 42px; margin-top: 2px; padding: 2px 7px; }
   .player-page .empty-question { margin-top: 4px; font-size: 12px; }
   .player-page .question-content { padding-bottom: 0; }
+}
+
+.host-access-page { min-height: calc(100vh - 20px); display: flex; flex-direction: column; }
+.host-access-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(540px, 100%);
+  margin: auto;
+  padding: clamp(24px, 5vw, 48px);
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 5px 16px #6560a312;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.host-access-message .eyebrow { color: #7655d9; font-size: 9px; }
+.host-access-message h1 { margin: 8px 0; color: #302d59; font: 600 clamp(28px, 4vw, 40px) "Fredoka", sans-serif; }
+.host-access-message p { color: #777694; font: 13px/1.5 "Nunito", sans-serif; }
+.host-access-message .button-primary, .host-access-message .button-outline { margin-top: 6px; }
+@media (max-width: 560px) {
+  .host-access-page { min-height: 100vh; }
 }
