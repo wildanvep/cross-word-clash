@@ -5,6 +5,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 
 const ROOM_TTL_SECONDS = 12 * 60 * 60;
 const MAX_MESSAGE_BYTES = 128 * 1024;
+const PLAYER_STATE_POLL_MS = 1000;
 const EVENT_CHANNEL = "crossword-clash:room-events";
 const redisUrl = process.env.REDIS_URL;
 const redis = redisUrl ? new Redis(redisUrl, {
@@ -46,6 +47,8 @@ interface ClientMessage {
 
 const roomSockets = new Map<string, Set<WebSocket>>();
 const socketRooms = new WeakMap<WebSocket, RoomSocket>();
+const socketStatePollers = new WeakMap<WebSocket, ReturnType<typeof setInterval>>();
+const lastSentStates = new WeakMap<WebSocket, string>();
 
 function authKey(roomCode: string): string {
   return `crossword-clash:room:${roomCode}:auth`;
@@ -71,10 +74,6 @@ function send(socket: WebSocket, message: unknown): void {
   socket.send(JSON.stringify(message));
 }
 
-function broadcast(roomCode: string, message: unknown): void {
-  for (const socket of roomSockets.get(roomCode) ?? []) send(socket, message);
-}
-
 function isGameState(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const state = value as Record<string, unknown>;
@@ -84,11 +83,52 @@ function isGameState(value: unknown): boolean {
     && typeof state.gameStatus === "string";
 }
 
+function sendPlayerState(socket: WebSocket, state: unknown): void {
+  if (!isGameState(state)) return;
+  const serializedState = JSON.stringify(state);
+  if (lastSentStates.get(socket) === serializedState) return;
+  lastSentStates.set(socket, serializedState);
+  send(socket, { type: "state", state });
+}
+
+function broadcastState(roomCode: string, state: unknown): void {
+  for (const socket of roomSockets.get(roomCode) ?? []) {
+    if (socketRooms.get(socket)?.role === "player") sendPlayerState(socket, state);
+  }
+}
+
+function startPlayerStatePolling(socket: WebSocket, roomCode: string): void {
+  const client = redis;
+  if (!client) return;
+  let polling = false;
+  let failureReported = false;
+  const poller = setInterval(() => {
+    if (polling || socket.readyState !== WebSocket.OPEN) return;
+    polling = true;
+    void client.get(stateKey(roomCode)).then((savedState) => {
+      failureReported = false;
+      if (!savedState) return;
+      try {
+        const state: unknown = JSON.parse(savedState);
+        sendPlayerState(socket, state);
+      } catch (error) {
+        console.error("Could not read the saved Crossword Clash room state.", error);
+      }
+    }).catch((error: unknown) => {
+      if (!failureReported) console.error("Could not poll the Crossword Clash room state.", error);
+      failureReported = true;
+    }).finally(() => {
+      polling = false;
+    });
+  }, PLAYER_STATE_POLL_MS);
+  socketStatePollers.set(socket, poller);
+}
+
 subscriber?.on("message", (_channel, rawMessage) => {
   try {
     const message = JSON.parse(rawMessage) as { roomCode?: unknown; state?: unknown };
     if (typeof message.roomCode !== "string" || !isGameState(message.state)) return;
-    broadcast(message.roomCode, { type: "state", state: message.state });
+    broadcastState(message.roomCode, message.state);
   } catch (error) {
     console.error("Could not relay a Crossword Clash room update.", error);
   }
@@ -167,11 +207,12 @@ async function handleMessage(socket: WebSocket, rawMessage: RawData): Promise<vo
       socket.close(1008, "Invalid role");
       return;
     }
-    if (!redis || !(await ensureSubscriberReady())) {
+    if (!redis) {
       send(socket, { type: "error", message: "Could not connect to live room updates. Please retry in a moment." });
       socket.close(1011, "Room service unavailable");
       return;
     }
+    void ensureSubscriberReady();
 
     const roomCode = message.roomCode.toUpperCase();
     try {
@@ -200,8 +241,9 @@ async function handleMessage(socket: WebSocket, rawMessage: RawData): Promise<vo
       const savedState = await redis.get(stateKey(roomCode));
       if (savedState) {
         const state: unknown = JSON.parse(savedState);
-        if (isGameState(state)) send(socket, { type: "state", state });
+        sendPlayerState(socket, state);
       }
+      if (message.role === "player") startPlayerStatePolling(socket, roomCode);
       return;
     } catch (error) {
       console.error("Could not join a Crossword Clash room.", error);
@@ -252,6 +294,10 @@ webSocketServer.on("connection", (socket, request: IncomingMessage) => {
   });
 
   const removeSocket = () => {
+    const poller = socketStatePollers.get(socket);
+    if (poller) clearInterval(poller);
+    socketStatePollers.delete(socket);
+    lastSentStates.delete(socket);
     const room = socketRooms.get(socket);
     if (!room) return;
     const sockets = roomSockets.get(room.roomCode);
