@@ -22,21 +22,39 @@ export function useRoomConnection(
   state: GameState,
   setState: Dispatch<SetStateAction<GameState>>,
 ) {
-  const [status, setStatus] = useState<RoomConnectionStatus>("offline");
-  const [error, setError] = useState<string | null>(null);
+  const connectionKey = JSON.stringify([roomCode, role, hostToken]);
+  const [connection, setConnection] = useState<{
+    key: string;
+    status: RoomConnectionStatus;
+    error: string | null;
+  }>({ key: "", status: "offline", error: null });
+  const status = connection.key === connectionKey
+    ? connection.status
+    : !roomCode || !role
+      ? "offline"
+      : role === "host" && !hostToken
+        ? "error"
+        : "connecting";
+  const error = connection.key === connectionKey
+    ? connection.error
+    : role === "host" && !hostToken
+      ? "This device does not have Host Desk access for this room."
+      : null;
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    const updateConnection = (nextStatus: RoomConnectionStatus, nextError: string | null = null) => {
+      setConnection({ key: connectionKey, status: nextStatus, error: nextError });
+    };
+
     if (!roomCode || !role) {
-      setStatus("offline");
-      setError(null);
+      updateConnection("offline");
       socketRef.current = null;
       return;
     }
 
     if (role === "host" && !hostToken) {
-      setStatus("error");
-      setError("This device does not have Host Desk access for this room.");
+      updateConnection("error", "This device does not have Host Desk access for this room.");
       socketRef.current = null;
       return;
     }
@@ -49,8 +67,7 @@ export function useRoomConnection(
 
     const connect = () => {
       if (disposed) return;
-      setStatus(retryCount === 0 ? "connecting" : "reconnecting");
-      setError(null);
+      updateConnection(retryCount === 0 ? "connecting" : "reconnecting");
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws`);
       activeSocket = socket;
@@ -68,8 +85,7 @@ export function useRoomConnection(
           message = JSON.parse(String(event.data)) as typeof message;
         } catch (cause) {
           console.error("Could not read a live room update.", cause);
-          setStatus("error");
-          setError("Received an invalid live room update.");
+          updateConnection("error", "Received an invalid live room update.");
           fatalError = true;
           socket.close();
           return;
@@ -77,22 +93,19 @@ export function useRoomConnection(
 
         if (message.type === "joined") {
           retryCount = 0;
-          setStatus("connected");
-          setError(null);
+          updateConnection("connected");
           return;
         }
         if (message.type === "error") {
           fatalError = true;
-          setStatus("error");
-          setError(typeof message.message === "string" ? message.message : "The live room could not connect.");
+          updateConnection("error", typeof message.message === "string" ? message.message : "The live room could not connect.");
           socket.close();
           return;
         }
         if (message.type === "state" && role === "player") {
           if (!isGameState(message.state)) {
             console.error("Received invalid game state from the live room.");
-            setStatus("error");
-            setError("Received invalid game state from the host.");
+            updateConnection("error", "Received invalid game state from the host.");
             fatalError = true;
             socket.close();
             return;
@@ -110,7 +123,7 @@ export function useRoomConnection(
         if (disposed || fatalError) return;
         const delay = Math.min(1000 * (2 ** retryCount), 15000);
         retryCount += 1;
-        setStatus("reconnecting");
+        updateConnection("reconnecting");
         retryTimer = window.setTimeout(connect, delay);
       });
 
@@ -124,7 +137,7 @@ export function useRoomConnection(
       if (socketRef.current === activeSocket) socketRef.current = null;
       activeSocket?.close();
     };
-  }, [roomCode, role, hostToken, setState]);
+  }, [connectionKey, roomCode, role, hostToken, setState]);
 
   useEffect(() => {
     if (role !== "host" || status !== "connected") return;

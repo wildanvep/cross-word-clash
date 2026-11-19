@@ -141,6 +141,7 @@ function App() {
   const [state, setState] = useGameState();
   const [path, setPath] = useState(currentRoute);
   const [roomCode, setRoomCode] = useState(roomCodeFromLocation);
+  const [pendingHostNavigation, setPendingHostNavigation] = useState(false);
   const [roomActionError, setRoomActionError] = useState<string | null>(null);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"reset" | "reset-game" | "finish" | "reveal" | null>(null);
@@ -148,7 +149,7 @@ function App() {
   const hostToken = roomCode ? localStorage.getItem(hostTokenStorageKey(roomCode)) : null;
   const roomConnection = useRoomConnection(
     roomCode,
-    hostPage ? "host" : "player",
+    hostPage || pendingHostNavigation ? "host" : "player",
     hostToken,
     state,
     setState,
@@ -158,6 +159,7 @@ function App() {
   useEffect(() => {
     const handleNavigation = () => {
       const route = currentRoute();
+      setPendingHostNavigation(false);
       setPath(route);
       setRoomCode(roomCodeFromLocation());
     };
@@ -166,6 +168,11 @@ function App() {
   }, []);
 
   const navigate = (to: "/game" | "/host") => {
+    if (to === "/host" && path !== "/host" && roomCode && hostToken) {
+      setPendingHostNavigation(true);
+      return;
+    }
+    setPendingHostNavigation(false);
     if (window.location.pathname !== to) {
       const query = roomCode ? `?room=${encodeURIComponent(roomCode)}` : "";
       window.history.pushState({}, "", `${to}${query}`);
@@ -173,9 +180,20 @@ function App() {
     setPath(to);
   };
 
+  useEffect(() => {
+    if (!pendingHostNavigation || (roomConnection.status !== "connected" && roomConnection.status !== "error")) return;
+    const url = new URL(window.location.href);
+    url.pathname = "/host";
+    url.search = roomCode ? `?room=${encodeURIComponent(roomCode)}` : "";
+    window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    setPath("/host");
+    setPendingHostNavigation(false);
+  }, [pendingHostNavigation, roomConnection.status, roomCode]);
+
   const leaveRoom = () => {
     const url = new URL(window.location.href);
     url.searchParams.delete("room");
+    setPendingHostNavigation(false);
     if (hostPage) {
       url.pathname = "/game";
       setPath("/game");
