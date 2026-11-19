@@ -197,7 +197,10 @@ function App() {
   const copyPlayerLink = async () => {
     if (!roomCode) return;
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/game?room=${encodeURIComponent(roomCode)}`);
+      const playerOrigin = window.location.hostname.endsWith(".vercel.app")
+        ? "https://cross-word-clash.vercel.app"
+        : window.location.origin;
+      await navigator.clipboard.writeText(`${playerOrigin}/game?room=${encodeURIComponent(roomCode)}`);
       setRoomActionError(null);
     } catch (error) {
       console.error("Could not copy the player room link.", error);
