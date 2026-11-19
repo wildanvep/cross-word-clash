@@ -712,7 +712,6 @@ function PlayerPage(props: SharedProps & { completed: number }) {
   return (
     <main className="player-page">
       <BrandHeader hostPage={hostPage} navigate={navigate} state={state} />
-      <RoomPanel {...props.roomPanelProps} />
       <div className="player-toolbar">
         <div><span className={`live-dot ${state.gameStatus === "playing" ? "on" : ""}`} />{state.gameStatus === "playing" ? "LIVE GAME" : state.gameStatus === "paused" ? "PAUSED" : "READY WHEN YOU ARE"}</div>
         <div className="toolbar-center">PUZZLE No. 001 <i>✦</i> THE DAILY WORD</div>
@@ -735,6 +734,7 @@ function PlayerPage(props: SharedProps & { completed: number }) {
           </div>
         </div>
         <aside className="player-side">
+          <RoomPanel {...props.roomPanelProps} />
           <section className="side-section">
             <div className="side-title"><h2>Today’s Clues</h2><span>ACROSS & DOWN</span></div>
             <ClueLists state={state} selectedClue={selectedClue} chooseClue={chooseClue} compact />
