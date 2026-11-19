@@ -17,12 +17,19 @@ const subscriber = redis?.duplicate();
 redis?.on("error", (error) => console.error("Crossword Clash Redis connection failed.", error));
 subscriber?.on("error", (error) => console.error("Crossword Clash Redis subscriber failed.", error));
 
-const subscriberReady = subscriber
-  ? subscriber.subscribe(EVENT_CHANNEL).then(() => true).catch((error: unknown) => {
-    console.error("Could not subscribe to Crossword Clash room updates.", error);
-    return false;
-  })
-  : Promise.resolve(false);
+let subscriberReady: Promise<boolean> | null = null;
+
+function ensureSubscriberReady(): Promise<boolean> {
+  if (!subscriber) return Promise.resolve(false);
+  if (!subscriberReady) {
+    subscriberReady = subscriber.subscribe(EVENT_CHANNEL).then(() => true).catch((error: unknown) => {
+      console.error("Could not subscribe to Crossword Clash room updates.", error);
+      subscriberReady = null;
+      return false;
+    });
+  }
+  return subscriberReady;
+}
 
 interface RoomSocket {
   roomCode: string;
@@ -160,8 +167,8 @@ async function handleMessage(socket: WebSocket, rawMessage: RawData): Promise<vo
       socket.close(1008, "Invalid role");
       return;
     }
-    if (!redis || !(await subscriberReady)) {
-      send(socket, { type: "error", message: "The live room service is temporarily unavailable." });
+    if (!redis || !(await ensureSubscriberReady())) {
+      send(socket, { type: "error", message: "Could not connect to live room updates. Please retry in a moment." });
       socket.close(1011, "Room service unavailable");
       return;
     }
