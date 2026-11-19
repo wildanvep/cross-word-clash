@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import RoomPanel, { type RoomPanelProps } from "./RoomPanel";
 import { hostTokenStorageKey, useRoomConnection } from "./realtime";
 import {
@@ -15,36 +15,6 @@ import {
   type GameState,
   type Team,
 } from "./game";
-
-const HOST_PASSWORD_KEY = "crossword-club-host-password-v1";
-
-interface HostPasswordRecord {
-  salt: string;
-  hash: string;
-}
-
-function readHostPasswordRecord(): HostPasswordRecord | null {
-  const saved = localStorage.getItem(HOST_PASSWORD_KEY);
-  if (!saved) return null;
-  try {
-    const record = JSON.parse(saved) as HostPasswordRecord;
-    if (typeof record.salt === "string" && typeof record.hash === "string") return record;
-    throw new Error("The saved Host Desk password record is invalid.");
-  } catch (error) {
-    console.error("Could not read the Host Desk password record.", error);
-    return null;
-  }
-}
-
-function toBase64(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes));
-}
-
-async function hashPassword(password: string, salt: Uint8Array): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 210_000, hash: "SHA-256" }, key, 256);
-  return toBase64(new Uint8Array(bits));
-}
 
 function loadState(): GameState {
   try {
@@ -146,91 +116,19 @@ function roomCodeFromLocation(): string | null {
   return roomCode && /^[A-F0-9]{12}$/.test(roomCode) ? roomCode : null;
 }
 
-function HostPasswordGate({ state, navigate, onUnlocked }: {
-  state: GameState;
-  navigate: (to: "/game" | "/host") => void;
-  onUnlocked: () => void;
-}) {
-  const [record, setRecord] = useState(readHostPasswordRecord);
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    if (!record && password.length < 8) {
-      setError("Choose a password with at least 8 characters.");
-      return;
-    }
-    if (!record && password !== confirmation) {
-      setError("The passwords do not match.");
-      return;
-    }
-    setBusy(true);
-    try {
-      if (record) {
-        const salt = Uint8Array.from(atob(record.salt), (character) => character.charCodeAt(0));
-        if (await hashPassword(password, salt) !== record.hash) {
-          setError("That password is not correct. Please try again.");
-          return;
-        }
-      } else {
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const created = { salt: toBase64(salt), hash: await hashPassword(password, salt) };
-        localStorage.setItem(HOST_PASSWORD_KEY, JSON.stringify(created));
-        setRecord(created);
-      }
-      onUnlocked();
-    } catch (cause) {
-      console.error("Could not verify or create the Host Desk password.", cause);
-      setError("Password protection requires a secure browser context, such as localhost or HTTPS.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="host-page password-page">
-      <BrandHeader hostPage navigate={navigate} state={state} />
-      <section className="password-gate">
-        <span className="dialog-star">✳</span>
-        <p className="eyebrow">PRIVATE HOST ACCESS</p>
-        <h1>{record ? "Host Desk is locked" : "Set a Host Desk password"}</h1>
-        <p>{record ? "Enter the password to open the game controls." : "Create a password before opening the game controls."}</p>
-        <form onSubmit={submit}>
-          <label className="field-label" htmlFor="host-password">{record ? "HOST PASSWORD" : "CREATE PASSWORD"}</label>
-          <input id="host-password" type="password" autoComplete={record ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} required />
-          {!record && (
-            <>
-              <label className="field-label" htmlFor="host-password-confirm">CONFIRM PASSWORD</label>
-              <input id="host-password-confirm" type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />
-            </>
-          )}
-          {error && <p className="password-error" role="alert">{error}</p>}
-          <button className="button-primary" type="submit" disabled={busy}>{busy ? "Checking…" : record ? "Unlock Host Desk" : "Save password & open Host Desk"}</button>
-        </form>
-        <p className="password-note">This password is stored as a salted hash in this browser. It helps prevent casual access but is not server-backed authentication.</p>
-      </section>
-    </main>
-  );
-}
-
 function App() {
   const [state, setState] = useGameState();
   const [path, setPath] = useState(currentRoute);
   const [roomCode, setRoomCode] = useState(roomCodeFromLocation);
   const [roomActionError, setRoomActionError] = useState<string | null>(null);
   const [creatingRoom, setCreatingRoom] = useState(false);
-  const [hostUnlocked, setHostUnlocked] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"reset" | "reset-game" | "finish" | "reveal" | null>(null);
   const [seconds, setSeconds] = useState(60);
   const hostPage = path === "/host";
   const hostToken = roomCode ? localStorage.getItem(hostTokenStorageKey(roomCode)) : null;
   const roomConnection = useRoomConnection(
     roomCode,
-    hostPage ? hostUnlocked ? "host" : null : "player",
+    hostPage ? "host" : "player",
     hostToken,
     state,
     setState,
@@ -239,7 +137,6 @@ function App() {
   useEffect(() => {
     const handleNavigation = () => {
       const route = currentRoute();
-      if (route === "/game") setHostUnlocked(false);
       setPath(route);
       setRoomCode(roomCodeFromLocation());
     };
@@ -252,7 +149,6 @@ function App() {
       const query = roomCode ? `?room=${encodeURIComponent(roomCode)}` : "";
       window.history.pushState({}, "", `${to}${query}`);
     }
-    if (to === "/game") setHostUnlocked(false);
     setPath(to);
   };
 
@@ -296,7 +192,6 @@ function App() {
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
     setRoomCode(code);
     setPath("/game");
-    setHostUnlocked(false);
   };
 
   const copyPlayerLink = async () => {
@@ -322,7 +217,7 @@ function App() {
   }, [remaining]);
 
   useEffect(() => {
-    if (!hostPage || !hostUnlocked || seconds !== 0 || !state.timerEndsAt) return;
+    if (!hostPage || seconds !== 0 || !state.timerEndsAt) return;
     setState((current) => {
       if (current.timerEndsAt === null) return current;
       const team = current.teams.find((entry) => entry.id === current.selectedTeamId);
@@ -351,7 +246,7 @@ function App() {
         },
       };
     });
-  }, [hostPage, hostUnlocked, seconds, state.timerEndsAt, setState]);
+  }, [hostPage, seconds, state.timerEndsAt, setState]);
 
   useEffect(() => {
     const messageId = state.message?.id;
@@ -579,10 +474,8 @@ function App() {
 
   return (
     <div className="app-shell">
-      {hostPage && !hostUnlocked
-        ? <HostPasswordGate state={state} navigate={navigate} onUnlocked={() => setHostUnlocked(true)} />
-        : hostPage
-          ? <HostPage {...pageProps} completed={completed} revealed={revealed} maxScore={maxScore} totalPoints={totalPoints} />
+      {hostPage
+        ? <HostPage {...pageProps} completed={completed} revealed={revealed} maxScore={maxScore} totalPoints={totalPoints} />
         : <PlayerPage {...pageProps} completed={completed} />}
       {confirmAction && (
         <ConfirmDialog

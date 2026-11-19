@@ -7,7 +7,11 @@ const ROOM_TTL_SECONDS = 12 * 60 * 60;
 const MAX_MESSAGE_BYTES = 128 * 1024;
 const EVENT_CHANNEL = "crossword-clash:room-events";
 const redisUrl = process.env.REDIS_URL;
-const redis = redisUrl ? new Redis(redisUrl, { maxRetriesPerRequest: null }) : null;
+const redis = redisUrl ? new Redis(redisUrl, {
+  commandTimeout: 10_000,
+  connectTimeout: 5_000,
+  maxRetriesPerRequest: 1,
+}) : null;
 const subscriber = redis?.duplicate();
 
 redis?.on("error", (error) => console.error("Crossword Clash Redis connection failed.", error));

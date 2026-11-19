@@ -332,19 +332,6 @@ kbd { border: 1px solid #c5b89f; border-radius: 2px; padding: 3px 5px; backgroun
 .edit-dialog textarea { min-height: 76px; resize: vertical; }
 .edit-error { color: var(--burgundy); font-size: 11px; }
 .edit-dialog textarea { min-height: 58px; margin-top: 5px; }
-.password-page { min-height: calc(100vh - 48px); }
-.password-gate { width: min(460px, 100%); margin: clamp(35px, 8vh, 85px) auto 45px; padding: 32px; border: 1px solid #c7baa1; outline: 1px solid #d5c9b1; outline-offset: -7px; background: #f1e8d6e8; text-align: center; }
-.password-gate > .dialog-star { color: var(--burgundy); font-size: 22px; }
-.password-gate > .eyebrow { margin: 8px 0; }
-.password-gate h1 { margin: 0; font: 600 clamp(26px, 4vw, 35px) "Playfair Display", Georgia, serif; }
-.password-gate > p:not(.eyebrow) { color: #756b5a; font: 13px/1.5 "Playfair Display", Georgia, serif; }
-.password-gate form { margin-top: 20px; text-align: left; }
-.password-gate input { width: 100%; border: 1px solid #c9bda7; background: #f6efdf; padding: 10px; color: var(--ink); }
-.password-gate form .button-primary { width: 100%; margin-top: 15px; }
-.password-gate .button-primary:disabled { opacity: .7; cursor: wait; }
-.password-gate .password-error { color: var(--burgundy); font: 11px/1.4 "DM Sans", sans-serif; text-align: left; }
-.password-gate .password-note { margin: 18px 0 0; color: #8a806e; font: 9px/1.45 "DM Sans", sans-serif; }
-
 @media (max-width: 1050px) {
   .player-layout { grid-template-columns: minmax(0, 1.25fr) minmax(270px, .85fr); gap: 22px; }
   .host-columns { grid-template-columns: minmax(0, 1.3fr) minmax(300px, .9fr); }
@@ -680,7 +667,7 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
 .team-select-dot { border-color: #b7b2d1; }
 .team-select-dot.selected { border-color: #7655d9; }
 .team-name-cell input { color: #302d59; font-family: "Nunito", sans-serif; font-weight: 800; }
-.score-edit, .manager-clue-row select, .point-input, .team-picker, .timer-setting input, .edit-dialog textarea, .edit-dialog > input, .password-gate input {
+.score-edit, .manager-clue-row select, .point-input, .team-picker, .timer-setting input, .edit-dialog textarea, .edit-dialog > input {
   border: 1px solid #e0def1;
   border-radius: 9px;
   background: #fbfaff;
@@ -757,20 +744,19 @@ kbd { border: 1px solid #e1def2; border-radius: 6px; background: #f4f2fb; color:
 .final-list-heading { color: #777694; font-family: "Nunito", sans-serif; font-weight: 800; }
 .final-list-row { border-color: #ece9f6; }
 .final-list-row strong { color: #302d59; font-family: "Nunito", sans-serif; }
-.password-gate, .confirm-dialog {
+.confirm-dialog {
   border: 0;
   border-radius: 22px;
   outline: 0;
   background: white;
   box-shadow: 0 18px 50px #6560a328;
 }
-.password-gate h1, .confirm-dialog h2 { color: #302d59; font-family: "Fredoka", sans-serif; }
-.password-gate > p:not(.eyebrow), .confirm-dialog > p:not(.eyebrow) { color: #777694; font-family: "Nunito", sans-serif; }
-.password-gate input { padding: 11px; }
+.confirm-dialog h2 { color: #302d59; font-family: "Fredoka", sans-serif; }
+.confirm-dialog > p:not(.eyebrow) { color: #777694; font-family: "Nunito", sans-serif; }
 .button-primary { border: 0; border-radius: 10px; background: #7655d9; color: white; font: 800 12px "Nunito", sans-serif; }
 .button-primary:hover { background: #6545c5; }
 .dialog-star { color: #f2ad24; }
-.password-gate .password-error, .edit-error { color: #d95552; }
+.edit-error { color: #d95552; }
 
 @media (max-width: 560px) {
   .player-page, .host-page { border-radius: 0; }
